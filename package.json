@@ -1,0 +1,19 @@
+{
+  "name": "dfb-dachmarke-pattern-tool",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "DFB Dachmarke typography pattern generator (DFB Sans Pro)",
+  "scripts": {
+    "fonts": "node scripts/fonts.mjs",
+    "build": "node scripts/fonts.mjs && node scripts/build.mjs",
+    "pretest": "node scripts/fonts.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.24.0",
+    "fontkit": "2.0.4",
+    "gifenc": "^1.0.3",
+    "mp4-muxer": "^5.1.5"
+  }
+}

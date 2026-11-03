@@ -1,0 +1,7 @@
+node_modules/
+.DS_Store
+# licensed font: kept only inside DFB-Sans-Pro.zip, unpacked by `npm run fonts`
+fonts/
+# local builds embed the font
+dist/
+test/out/
