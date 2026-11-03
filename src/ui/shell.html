@@ -189,7 +189,7 @@ input[type=range]:active::-webkit-slider-thumb { background: var(--highlight-pre
 .switch input:checked + .switch-track::after { left: 17px; background: var(--on-highlight); }
 
 /* --- Work area --- */
-#tool, #animation { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: var(--s3); }
+#tool, #animation { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) clamp(260px, 34vw, 360px); gap: var(--s3); }
 .corner-tools { position: absolute; top: calc(var(--s3) + var(--s2)); right: calc(var(--s3) + var(--s2)); z-index: 3; display: flex; gap: 2px; background: var(--bg); border-radius: var(--r-pill); padding: 2px; box-shadow: 0 1px 4px #0000001f; }
 .corner-tools .btn[data-tip]:hover::after { left: auto; right: 0; transform: none; }
 
@@ -313,9 +313,9 @@ dialog.modal::backdrop { background: #0000004d; }
 .toast-error > .icon { color: var(--error); }
 
 /* --- Dachmarke additions --- */
-/* the app fills the window; nothing may scroll the page itself (focus inside the
-   control column scrolled the whole document before) */
-@media (min-width: 861px) { html, body { overflow: clip; } }
+/* The app always fills the window exactly, at every width and browser zoom: the
+   page itself never scrolls — only the control column (and the library) do. */
+html, body { height: 100%; overflow: hidden; }
 .gap-layer { position: absolute; inset: 0; pointer-events: none; }
 .gap-btn { position: absolute; pointer-events: auto; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; border: 0; padding: 0;
   font: 650 16px/1 var(--font-ui); background: var(--highlight); color: var(--on-highlight); cursor: pointer; box-shadow: 0 1px 4px #0000004d; opacity: .9; }
@@ -353,11 +353,37 @@ dialog.modal::backdrop { background: #0000004d; }
 .menu-item small { display: block; font-weight: 400; color: var(--fg-2); font-size: var(--fs-small); }
 .btn.btn-medium { height: 48px; }
 
-@media (max-width: 860px) {
-  html, body { height: auto; }
-  #tool, #animation { grid-template-columns: minmax(0, 1fr); }
-  .anim-main { height: 55vh; }
-  main { height: 55vh; }
+/* bars stay on one line: the preview keeps its height at any width / zoom */
+.topbar, .viewbar, .previewbar { flex-wrap: nowrap; }
+.topbar .group, .viewbar .group { flex-wrap: nowrap; }
+@media (max-width: 1180px) { .topbar h1 { display: none; } .pair { width: 32px; } .dropdown-compact { min-width: 0; max-width: 210px; } }
+main, .viewbar { min-width: 0; }
+.viewbar > .group:first-child { min-width: 0; flex-shrink: 1; }
+/* narrow windows (or high zoom): tighter bars */
+@media (max-width: 900px) {
+  .tab { padding: 0 var(--s2); }
+  .tab > .icon { display: none; }
+  .viewbar { padding: var(--s1) var(--s2); min-height: 48px; gap: var(--s1); }
+  .viewbar .btn-small { padding-inline: 10px; }
+  #zoom100, #zoomLabel { display: none; }
+  .pair { width: 32px; }
+  .dropdown-compact { min-width: 0; max-width: 190px; }
+  #viewport { padding: var(--s3); }
+  #download { padding-inline: 16px; }
+}
+@media (max-width: 700px) {
+  #variant, #markPoint { font-size: 0; gap: 0; padding-inline: 10px; }        /* icon only */
+  #pointBadge { font-size: 11px; margin-left: 4px; }
+  .topbar .btn-medium { height: 40px; }
+  .pair { width: 26px; height: 26px; }
+  .pair span { display: none; }
+}
+/* very narrow: preview fixed on top, the controls scroll below it */
+@media (max-width: 600px) {
+  #download { font-size: 0; gap: 0; padding-inline: 12px; }
+  #themeBtn { display: none; }
+  #tool, #animation { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 58fr) minmax(0, 42fr); }
+  #colors { display: none; }
   .menu { right: auto; left: 0; }
   .topbar { padding-block: var(--s2); }
   .topbar .spacer { display: none; }

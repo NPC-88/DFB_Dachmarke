@@ -22,7 +22,7 @@ const path = require('path');
   await p.fill('#ctl-text', 'Fußball'); await p.dispatchEvent('#ctl-text', 'change'); await p.waitForTimeout(300); await shot('4-text');
   // logo: on, In der Typo (1 Schnitt), drag, resize, remove
   await p.click('.chip[data-value="single"]'); await p.fill('#ctl-text', 'Club 100'); await p.dispatchEvent('#ctl-text', 'change');
-  await p.getByRole('switch', { name: 'Logo im Layout' }).click();
+  await p.locator('.switch:has-text("Logo im Layout") .switch-track').click();
   await p.click('.chip[data-value="fit"]'); await p.waitForTimeout(300);
   const sy = await p.evaluate(() => window.scrollY);
   if (sy !== 0) errors.push('page scrolled by ' + sy + ' px after clicking in the logo panel');
@@ -58,7 +58,7 @@ const path = require('path');
   await p.click('.chip[data-value="free"]'); await p.waitForTimeout(200); await shot('9-logo-free');
   await p.hover('.logo-box'); await p.click('.logo-del'); await p.waitForTimeout(200);
   console.log('after delete on =', await p.evaluate(() => window.dfbPattern.params.logo.on), 'box hidden =', await p.isHidden('.logo-box'));
-  await p.getByRole('switch', { name: 'Logo im Layout' }).click(); await p.click('.chip[data-value="fit"]');
+  await p.locator('.switch:has-text("Logo im Layout") .switch-track').click(); await p.click('.chip[data-value="fit"]');
   // export popover + downloads
   await p.click('#download'); await p.waitForTimeout(200); await shot('5-export');
   for (const kind of ['svg-outlines', 'svg-text', 'png']) {
