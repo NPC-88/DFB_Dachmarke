@@ -118,7 +118,7 @@ body[data-tab=library] #saveBtn, body[data-tab=library] #download { display: non
 .tab[aria-selected=true] { color: var(--highlight); }
 .tab[aria-selected=true]::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: var(--highlight); }
 .tab:hover { color: var(--highlight); }
-#libCount:empty, #animCount:empty, #momentBadge:empty { display: none; }
+#libCount:empty, #animCount:empty, #pointBadge:empty { display: none; }
 .count { font: 650 11px/1 var(--font-ui); background: var(--bg-tertiary); color: var(--fg-2); border-radius: var(--r-pill); padding: 3px 7px; }
 .group { display: flex; gap: var(--s2); align-items: center; position: relative; flex-wrap: wrap; }
 .vsep { width: 1px; height: 28px; background: var(--bg-tertiary); }
@@ -220,7 +220,7 @@ main { position: relative; min-width: 0; min-height: 0; background: var(--bg); b
 .viewbar .group:last-child .btn[data-tip]:hover::after { left: auto; right: 0; transform: none; }
 .viewbar:last-child [data-tip]:hover::after, .viewbar:last-child [data-tip]:focus-visible::after { top: auto; bottom: calc(100% + 8px); }
 .viewbar:last-child [data-tip]:hover::before, .viewbar:last-child [data-tip]:focus-visible::before { top: auto; bottom: calc(100% + 3px); border-bottom: 0; border-top: 5px solid var(--fg); }
-.viewbar:last-child #markMoment[data-tip]:hover::after { left: auto; right: 0; transform: none; }
+.viewbar:last-child #markPoint[data-tip]:hover::after { left: auto; right: 0; transform: none; }
 .rec .icon { color: var(--error); }
 .rec.flash { animation: rec-pulse .6s ease-out; }
 @keyframes rec-pulse { 0% { box-shadow: inset 0 0 0 1px var(--highlight-hover), 0 0 0 0 #ba404066; } 100% { box-shadow: inset 0 0 0 1px var(--highlight-hover), 0 0 0 12px #ba404000; } }
@@ -409,6 +409,7 @@ dialog.modal::backdrop { background: #0000004d; }
       </div>
       <span class="spacer"></span>
       <button type="button" class="btn btn-secondary btn-small" id="variant" data-tip="Neue Anordnung mit denselben Einstellungen" data-icon="reset">Neue Variante</button>
+      <button type="button" class="btn btn-secondary btn-small rec" id="markPoint" data-tip="Aktuellen Stand als Punkt für die Animation merken" data-icon="record">Punkt merken <span id="pointBadge" class="count"></span></button>
     </div>
   </main>
   <aside id="controls"></aside>

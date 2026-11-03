@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { createEngine, PRESETS, letterWidths, LAYOUT_DEFAULTS, ANIM_DEFAULTS } from '../src/core/index.js';
+import { createEngine, PRESETS, letterWidths, LAYOUT_DEFAULTS, ANIM_DEFAULTS, animLength } from '../src/core/index.js';
 
 const e = createEngine(readFileSync('fonts/DFB-Sans-Pro.ttf'), readFileSync('fonts/DFB-Sans-Pro-Italic.ttf'));
 const P = (id) => PRESETS.find((p) => p.id === id).params;
@@ -47,7 +47,8 @@ test('3 Schnitte: at most 3 rows, one style per row', () => {
   const m = at('rows', { rows: 9 });
   assert.equal(m.rows.length, 3);
   m.rows.forEach((r, i) => { for (const g of r.glyphs) assert.deepEqual(g.c, P('rows').rowStyles[i]); });
-  assert.equal(m.rotate, -90);
+  assert.equal(m.rotate, 0);   // horizontal by default, like every pattern
+  for (const id of ['single', 'rows', 'letters']) assert.equal(at(id, { orientation: 'vertical' }).rotate, -90);
 });
 
 test('same seed → same pattern; other seed → other pattern', () => {
@@ -91,18 +92,36 @@ test('svg: outlines and live text', () => {
   const t = e.svg(m, { color: '#C8F2E0', mode: 'text' });
   assert.match(t, /font-family="'DFB Sans Pro Static SupEx Black', 'DFB Sans Pro Static', 'DFB Sans Pro'"/);
   assert.match(t, /font-style="italic"/);
-  const v = e.svg(at('rows'), { mode: 'outlines', background: '#A6CABA' });
+  const v = e.svg(at('rows', { orientation: 'vertical' }), { mode: 'outlines', background: '#A6CABA' });
   assert.match(v, /matrix\(0 -1 1 0 0 624\)/);
   assert.match(v, /<rect id="Hintergrund"/);
 });
 
-test('animation: loops seamlessly, moves the axes', () => {
-  for (const mode of ['welle', 'atmen', 'wechsel']) for (const id of ['single', 'rows', 'letters']) {
+test('animation effects: loop seamlessly, move the axes', () => {
+  for (const effect of ['welle', 'atmen', 'wechsel']) for (const id of ['single', 'rows', 'letters']) {
     const p = { ...P(id), width: 441, height: 624 };
-    const a = { ...ANIM_DEFAULTS, mode };
-    const f0 = e.frame(p, a, 0), fL = e.frame(p, a, a.length);
-    assert.deepEqual(f0.rows.map((r) => r.glyphs.map((g) => g.c)), fL.rows.map((r) => r.glyphs.map((g) => g.c)), `${mode} ${id} loop`);
-    const mid = e.frame(p, a, a.length / 4);
-    assert.notDeepEqual(f0.rows.map((r) => r.glyphs.map((g) => g.c)), mid.rows.map((r) => r.glyphs.map((g) => g.c)), `${mode} ${id} moves`);
+    const a = { ...ANIM_DEFAULTS, effect };
+    const cs = (m) => m.rows.map((r) => r.glyphs.map((g) => g.c));
+    assert.deepEqual(cs(e.frame(p, a, 0)), cs(e.frame(p, a, a.length)), `${effect} ${id} loop`);
+    assert.notDeepEqual(cs(e.frame(p, a, 0)), cs(e.frame(p, a, a.length / 4)), `${effect} ${id} moves`);
   }
+});
+
+test('animation points: start at point 1, pass point 2, loop back; rows slide, letters change width', () => {
+  const p = { ...P('letters'), width: 441, height: 624 };
+  const m1 = { params: { ...p } };
+  const m2 = { params: { ...p, ref: null, seed: 5, size: p.size * 0.8 } };
+  const a = { ...ANIM_DEFAULTS, moments: [m1, m2], durations: [2, 3] };
+  assert.equal(animLength(a), 5);
+  const still = (q) => JSON.stringify(e.layout(q).rows);
+  assert.equal(JSON.stringify(e.frame(p, a, 0).rows), still(p));
+  assert.equal(JSON.stringify(e.frame(p, a, 2).rows), still({ ...p, ...m2.params }));
+  assert.equal(JSON.stringify(e.frame(p, a, 5).rows), still(p));
+  const mid = e.frame(p, a, 1);
+  assert.ok(mid.fontSize < p.size * 441 && mid.fontSize > p.size * 0.8 * 441);
+  // structure (text, pattern) comes from the tool, not from the points
+  const other = e.frame({ ...p, text: 'Fußball' }, a, 1);
+  assert.equal(other.phrase, 'FUSSBALL');
+  // pingpong: 1 → 2 → 1
+  assert.equal(animLength({ ...a, loop: 'pingpong' }), 4);
 });

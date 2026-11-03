@@ -10,12 +10,12 @@ import * as fontkit from 'fontkit';
 import { createFont } from './font.js';
 import { layoutPattern, LAYOUT_DEFAULTS, cleanText } from './layout.js';
 import { toSVG } from './svg.js';
-import { motionAt, altLetters, ANIM_DEFAULTS } from './animate.js';
+import { motionAt, altLetters, normalizeAnim, segmentAt, momentParams, blendParams } from './animate.js';
 
 export { WIDTHS, WEIGHTS, styleName } from './font.js';
 export { LAYOUT_DEFAULTS, MAX_ROWS_PER_STYLE, letterWidths, cleanText } from './layout.js';
 export { PALETTE, COLOR_PAIRS, FORMATS, PRESETS, TEXT_SUGGESTIONS, DEFAULT_FORMAT } from './presets.js';
-export { ANIM_DEFAULTS, motionAt } from './animate.js';
+export { ANIM_DEFAULTS, STRUCTURE, motionAt, animLength, normalizeAnim, segmentAt } from './animate.js';
 export { newSeed } from './random.js';
 
 const bytes = (b) => (b instanceof Uint8Array ? b : new Uint8Array(b));
@@ -23,18 +23,46 @@ const bytes = (b) => (b instanceof Uint8Array ? b : new Uint8Array(b));
 export function createEngine(uprightBytes, italicBytes) {
   const font = createFont(fontkit.create(bytes(uprightBytes)), italicBytes ? fontkit.create(bytes(italicBytes)) : null);
   const layout = (params) => layoutPattern(font, params);
+
+  // Row starts (share of the frame) and per-letter widths of one point, cached.
+  const resolved = new Map();
+  function resolve(p) {
+    const key = JSON.stringify(p);
+    let r = resolved.get(key);
+    if (!r) {
+      const m = layout(p);
+      r = { xs: m.starts.map((x) => x / m.vw), letters: m.letterMap };
+      if (resolved.size > 200) resolved.clear();
+      resolved.set(key, r);
+    }
+    return r;
+  }
+
+  function frameArgs(params, anim, t) {
+    let p = { ...LAYOUT_DEFAULTS, ...params };
+    const a = normalizeAnim(anim);
+    const seg = segmentAt(a, t);
+    if (seg) {
+      const [i, j, k] = seg;
+      const A = { ...LAYOUT_DEFAULTS, ...momentParams(p, a.moments[i]) };
+      const B = { ...LAYOUT_DEFAULTS, ...momentParams(p, a.moments[j]) };
+      p = { ...p, ...blendParams(A, B, resolve(A), resolve(B), k) };
+    }
+    if (a.effect === 'wechsel' && p.pattern === 'letters') {
+      const n = [...cleanText(p.text)].filter((ch) => !/\s/.test(ch)).length;
+      p.altMap = altLetters(p, n);
+    }
+    return [p, motionAt(p, a, t, font.axes)];
+  }
   return {
     font,
     layout,
     svg: (model, opts) => toSVG(model, font, opts),
+    // Model at time t: points blended (if any), then the effect (if any).
     frame(params, anim, t) {
-      const p = { ...LAYOUT_DEFAULTS, ...params };
-      const a = { ...ANIM_DEFAULTS, ...anim };
-      if (a.mode === 'wechsel' && p.pattern === 'letters') {
-        const n = [...cleanText(p.text)].filter((ch) => !/\s/.test(ch)).length;
-        p.altMap = altLetters(p, n);
-      }
-      return layoutPattern(font, p, motionAt(p, a, t, font.axes));
+      return layoutPattern(font, ...frameArgs(params, anim, t));
     },
+    // Params of the pattern at time t (points blended), for previews of a point.
+    paramsAt: (params, anim, t) => frameArgs(params, anim, t)[0],
   };
 }

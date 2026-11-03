@@ -51,16 +51,18 @@ export const SINGLE = {
 };
 
 // 3 Schriftschnitte, 1 Schnitt pro Zeile (max 3 Zeilen) — Graf_Typopattern_2
-// (DEUTSCHER FUSSBALL BUND): turned −90°, three columns at the right edge,
-// 26.9 px, ~29 px apart; Druk Wide → Text → Bold, italic, matched by phrase length: Super Extended Black → Condensed Black → Compressed Bold.
+// (DEUTSCHER FUSSBALL BUND). The three styles are the board's (Druk Wide → Text
+// → Bold, matched by phrase length 636 / 308 / 201 px: Super Extended Black →
+// Condensed Black → Compressed Bold, italic). The board shows it turned −90°;
+// team decision: like every pattern it is horizontal by default and can be
+// turned. Horizontal size, spacing and margin follow CLUB 100.
 export const ROWS = {
   id: 'rows', name: '3 Schnitte', label: '3 Schriftschnitte, 1 Schnitt pro Zeile', colorPair: 'mint',
   params: {
-    text: 'Deutscher Fußball Bund', pattern: 'rows', orientation: 'vertical', italic: true,
-    rowStyles: [{ wdth: 200, wght: 925 }, { wdth: 80, wght: 925 }, { wdth: 40, wght: 650 }],   // phrase lengths 636 / 308 / 201 px in Figma
-    size: F(26.89), lineHeight: 29 / 26.89, rows: 3, band: 'end', margin: F(13.5), gap: 0.55, shift: 1,
-    // column starts measured from the bottom edge (virtual frame = 624 px long)
-    ref: { xs: [-7, -15, -21].map((px) => px / 624) },
+    text: 'Deutscher Fußball Bund', pattern: 'rows', orientation: 'horizontal', italic: true,
+    rowStyles: [{ wdth: 200, wght: 925 }, { wdth: 80, wght: 925 }, { wdth: 40, wght: 650 }],
+    size: F(70), lineHeight: 58 / 70, rows: 3, band: 'end', margin: F(26), gap: 0.4, shift: 1,
+    seed: 7,
   },
 };
 

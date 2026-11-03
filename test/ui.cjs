@@ -13,6 +13,7 @@ const path = require('path');
   const shot = (n) => p.screenshot({ path: `test/out/ui-${n}.png` });
   await shot('1-default');
   for (const id of ['rows', 'letters']) {
+    // 3 Schnitte must open horizontal
     await p.click(`.chip[data-value="${id}"]`);
     await p.waitForTimeout(400);
     await shot('2-' + id);
@@ -28,10 +29,21 @@ const path = require('path');
     await dl.saveAs('test/out/export-' + kind + path.extname(dl.suggestedFilename()));
     console.log('download', dl.suggestedFilename());
   }
+  // animation points: point 1, change things, point 2, change again, point 3
+  await p.click('.chip[data-value="letters"]');
+  await p.click('#markPoint'); await p.waitForTimeout(150);
+  await p.click('#variant'); await p.click('.chip[data-value="vertical"]'); await p.waitForTimeout(150);
+  await p.click('.chip[data-value="horizontal"]');
+  await p.click('#markPoint'); await p.waitForTimeout(150);
+  await p.click('#variant');
+  await p.click('#markPoint'); await p.waitForTimeout(300);
+  await shot('6a-points');
   await p.click('[data-tab=animation]'); await p.waitForTimeout(500);
-  await p.click('.anim-aside .chip[data-value="wechsel"]');
-  await p.click('.previewbar .btn'); await p.waitForTimeout(1500); await shot('6-anim');
+  await p.click('.previewbar .btn'); await p.waitForTimeout(1300); await shot('6-anim');
   await p.click('.previewbar .btn');
+  await p.click('.anim-aside .chip[data-value="welle"]'); await p.waitForTimeout(200); await shot('6b-anim-effect');
+  const [vid] = await Promise.all([p.waitForEvent('download', { timeout: 120000 }), p.click('#videoExport')]);
+  console.log('video', vid.suggestedFilename());
   await p.click('[data-tab=library]'); await p.waitForTimeout(800); await shot('7-library');
   await p.emulateMedia({ colorScheme: 'dark' });
   await p.click('[data-tab=tool]'); await p.waitForTimeout(300); await shot('8-dark');

@@ -1,14 +1,17 @@
-// Animation tab: the type moves along its variable axes (width / weight).
-//   Bewegung — Welle (runs along the rows), Atmen (all together), Wechsel
-//              (letters change style and back)
-//   Achse    — Breite, Stärke or both; Stärke of the movement; Länge
+// Animation tab, as in the national-team tool:
+//   Punkte   — marked in the tool ("Punkt merken"); as many as wanted; reorder,
+//              time to the next point, open in the tool, delete
+//   Bewegung — Übergang (smooth / linear), Ablauf (loop / back and forth)
+//   Effekt   — optional, on top: Welle, Atmen, Schnittwechsel along the
+//              variable axes (width / weight)
 //   Export   — MP4 or GIF, 100 % / 50 %, 25 / 30 fps (GIF 25), with progress
-// Every movement loops seamlessly. The preview plays live; the export renders
+// Every animation loops seamlessly. The preview plays live; the export renders
 // every frame at full quality.
 
 import { panel, el, chips, slider, iconButton } from './controls.js';
 import { icon } from './icons.js';
 import { drawModel } from './render.js';
+import { animLength } from '../core/index.js';
 import { exportMP4, exportGIF, mp4Supported } from './video.js';
 
 export function createAnimationView(root, ctx) {
@@ -26,14 +29,26 @@ export function createAnimationView(root, ctx) {
   main.append(viewport, transport);
 
   const aside = el('aside', { class: 'anim-aside' });
+  const pBox = panel('Punkte', true);
+  const list = el('ol', { class: 'moments' });
+  const emptyHint = el('p', { class: 'hint' }, 'Noch keine Punkte. Im Werkzeug ein Muster einstellen und „Punkt merken“ klicken, dann etwas ändern (Schnitt, Variante, Größe, Abstand …) und noch einen Punkt merken — die Animation läuft von Punkt zu Punkt. Oder unten einen Effekt wählen.');
+  pBox.body.append(list, emptyHint);
+
   const bBox = panel('Bewegung', true);
-  const mode = chips('Art', [['welle', 'Welle'], ['atmen', 'Atmen'], ['wechsel', 'Schnittwechsel']], (v) => ctx.setAnim({ mode: v }), { small: true });
+  const easing = chips('Übergang', [['smooth', 'Weich'], ['linear', 'Linear']], (v) => ctx.setAnim({ easing: v }), { small: true });
+  const loop = chips('Ablauf', [['loop', 'Schleife'], ['pingpong', 'Hin und zurück']], (v) => ctx.setAnim({ loop: v }), { small: true });
+  const length = slider({ key: 'anim-length', label: 'Länge einer Schleife', min: 2, max: 12, step: 0.5, unit: 's' }, (v, tr) => ctx.setAnim({ length: v }, { transient: tr }));
+  const total = el('p', { class: 'hint' });
+  bBox.body.append(easing.node, loop.node, length.node, total);
+
+  const eBox = panel('Effekt', true);
+  const mode = chips('', [['none', 'Keiner'], ['welle', 'Welle'], ['atmen', 'Atmen'], ['wechsel', 'Schnittwechsel']], (v) => ctx.setAnim({ effect: v }), { small: true });
   const modeHint = el('p', { class: 'hint' });
   const axis = chips('Achse der Schrift', [['wdth', 'Breite'], ['wght', 'Stärke'], ['both', 'Beides']], (v) => ctx.setAnim({ axis: v }), { small: true });
   const amount = slider({ key: 'anim-amount', label: 'Ausschlag', min: 5, max: 100, step: 1, unit: '%' }, (v, tr) => ctx.setAnim({ amount: v / 100 }, { transient: tr }));
   const waves = slider({ key: 'anim-waves', label: 'Wellen über die Fläche', min: 0.5, max: 4, step: 0.1, unit: '×' }, (v, tr) => ctx.setAnim({ waves: v }, { transient: tr }));
-  const length = slider({ key: 'anim-length', label: 'Länge einer Schleife', min: 2, max: 12, step: 0.5, unit: 's' }, (v, tr) => ctx.setAnim({ length: v }, { transient: tr }));
-  bBox.body.append(mode.node, modeHint, axis.node, amount.node, waves.node, length.node);
+  const cycles = chips('Effekt pro Durchlauf', [['1', '1×'], ['2', '2×'], ['3', '3×'], ['4', '4×']], (v) => ctx.setAnim({ cycles: +v }), { small: true });
+  eBox.body.append(mode.node, modeHint, axis.node, amount.node, waves.node, cycles.node);
 
   const xBox = panel('Export', true);
   const fmt = chips('Format', [['mp4', 'MP4'], ['gif', 'GIF']], (v) => { exportOpts.format = v; syncExport(); }, { small: true });
@@ -49,13 +64,13 @@ export function createAnimationView(root, ctx) {
   progress.append(el('div', { class: 'progress-track' }, ''), pLabel, cancel);
   progress.firstChild.append(bar);
   xBox.body.append(fmt.node, size.node, rate.node, xInfo, xBtn, progress);
-  aside.append(bBox.node, xBox.node);
+  aside.append(pBox.node, bBox.node, eBox.node, xBox.node);
   root.append(main, aside);
 
   const exportOpts = { format: 'mp4', scale: 1, fps: 25 };
   let playing = false, t0 = 0, tNow = 0, raf = 0, busy = false, abort = null;
   let lastDraw = 0, frames = 0, fpsShown = 0;
-  const L = () => ctx.anim().length;
+  const L = () => animLength(ctx.anim());
 
   function draw(t) {
     const p = ctx.params();
@@ -101,10 +116,57 @@ export function createAnimationView(root, ctx) {
   }
 
   const HINTS = {
+    none: 'Nur die Punkte bewegen sich.',
     welle: 'Eine Welle läuft durch die Zeilen: jeder Buchstabe wird nacheinander breiter und schmaler.',
     atmen: 'Alle Buchstaben werden gemeinsam breiter und schmaler.',
     wechsel: 'Schnittmix: jeder Buchstabe wechselt zu einer anderen Breite und zurück. 3 Schnitte: die Zeilen tauschen ihre Schnitte. 1 Schnitt: der Schnitt schwingt zum anderen Ende der Achse.',
   };
+
+  // --- points list ------------------------------------------------------------
+  function drawPoints() {
+    const a = ctx.anim(), p = ctx.params();
+    const n = a.moments.length;
+    list.replaceChildren();
+    emptyHint.hidden = n > 0;
+    a.moments.forEach((m, i) => {
+      const li = el('li', { class: 'moment' });
+      const thumb = el('canvas', { class: 'moment-thumb', 'aria-hidden': 'true' });
+      const tw = 96, th = Math.max(1, Math.round((tw * p.height) / p.width));
+      thumb.width = tw * 2; thumb.height = th * 2;
+      const model = ctx.engine.frame(p, { ...a, moments: [m], effect: 'none' }, 0);
+      drawModel(thumb.getContext('2d'), model, ctx.engine.font, { color: ctx.pair().color, background: ctx.pair().background, k: (tw * 2) / p.width });
+      const body = el('div', { class: 'moment-body' });
+      body.append(el('strong', {}, `Punkt ${i + 1}`));
+      const showDur = n > 1 && !(a.loop === 'pingpong' && i === n - 1);
+      if (showDur) {
+        const next = i === n - 1 ? 1 : i + 2;
+        const dur = slider({ key: `dur-${i}`, label: `→ Punkt ${next}`, min: 0.3, max: 6, step: 0.1, unit: 's' }, (v, transient) => {
+          const d = [...a.durations]; while (d.length < n) d.push(2); d[i] = v; ctx.setAnim({ durations: d }, { transient });
+        });
+        dur.set(a.durations[i] ?? 2);
+        body.append(dur.node);
+      }
+      const acts = el('div', { class: 'moment-actions' });
+      const upB = iconButton('up', 'Nach oben'), downB = iconButton('down', 'Nach unten');
+      const openB = iconButton('edit', 'Im Werkzeug öffnen'), delB = iconButton('trash', 'Löschen');
+      upB.disabled = i === 0; downB.disabled = i === n - 1;
+      upB.addEventListener('click', () => move(i, -1));
+      downB.addEventListener('click', () => move(i, 1));
+      openB.addEventListener('click', () => ctx.openPoint(i));
+      delB.addEventListener('click', () => ctx.setAnim({ moments: a.moments.filter((_, k) => k !== i), durations: a.durations.filter((_, k) => k !== i) }));
+      acts.append(upB, downB, openB, delB);
+      li.append(thumb, body, acts);
+      list.append(li);
+    });
+  }
+  function move(i, dir) {
+    const a = ctx.anim();
+    const ms = [...a.moments], d = [...a.durations];
+    const j = i + dir;
+    [ms[i], ms[j]] = [ms[j], ms[i]];
+    [d[i], d[j]] = [d[j], d[i]];
+    ctx.setAnim({ moments: ms, durations: d });
+  }
 
   function syncExport() {
     const p = ctx.params();
@@ -123,7 +185,7 @@ export function createAnimationView(root, ctx) {
     if (busy) return;
     const p = ctx.params(), a = ctx.anim(), pair = ctx.pair();
     const fps = exportOpts.format === 'gif' ? 25 : exportOpts.fps;
-    const total = Math.round(a.length * fps);
+    const frames = Math.round(animLength(a) * fps);
     const w = Math.round(p.width * exportOpts.scale), h = Math.round(p.height * exportOpts.scale);
     const renderFrame = (c2, i, t) => {
       drawModel(c2, ctx.engine.frame(p, a, t), ctx.engine.font, { color: pair.color, background: pair.background, k: c2.canvas.width / p.width });
@@ -141,9 +203,9 @@ export function createAnimationView(root, ctx) {
     };
     onProgress(0);
     try {
-      const opts = { width: w, height: h, fps, frames: total, renderFrame, onProgress, signal: abort.signal, background: pair.background, color: pair.color };
+      const opts = { width: w, height: h, fps, frames, renderFrame, onProgress, signal: abort.signal, background: pair.background, color: pair.color };
       const blob = exportOpts.format === 'gif' ? await exportGIF(opts) : await exportMP4(opts);
-      ctx.flash(await ctx.save({ filename: `${ctx.fileName()}-${a.mode}.${exportOpts.format}`, data: blob }));
+      ctx.flash(await ctx.save({ filename: `${ctx.fileName()}-animation.${exportOpts.format}`, data: blob }));
     } catch (e) {
       ctx.flash(e && e.name === 'AbortError' ? 'Export abgebrochen.' : 'Export fehlgeschlagen: ' + (e && e.message));
     } finally {
@@ -156,13 +218,23 @@ export function createAnimationView(root, ctx) {
 
   function sync() {
     const a = ctx.anim();
-    mode.set(a.mode);
-    modeHint.textContent = HINTS[a.mode];
+    const many = a.moments.length >= 2;
+    easing.set(a.easing); loop.set(a.loop);
+    easing.node.hidden = loop.node.hidden = !many;
+    length.node.hidden = many;
+    length.set(a.length);
+    total.textContent = `Gesamtlänge ${fmtS(L())} s, läuft als Schleife.` + (a.moments.length < 2 && a.effect === 'none' ? ' Noch bewegt sich nichts: mindestens zwei Punkte merken oder einen Effekt wählen.' : '');
+    mode.set(a.effect);
+    modeHint.textContent = HINTS[a.effect] || '';
+    const fx = a.effect !== 'none';
+    axis.node.hidden = amount.node.hidden = !fx;
     axis.set(a.axis);
     amount.set(Math.round(a.amount * 100));
     waves.set(a.waves);
-    waves.node.hidden = a.mode !== 'welle';
-    length.set(a.length);
+    waves.node.hidden = a.effect !== 'welle';
+    cycles.set(String(a.cycles || 1));
+    cycles.node.hidden = !fx || !many;
+    drawPoints();
     syncExport();
     if (tNow > L()) tNow = 0;
     syncTime();

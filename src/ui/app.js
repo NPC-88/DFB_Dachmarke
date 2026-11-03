@@ -5,7 +5,7 @@
 
 import {
   createEngine, PRESETS, COLOR_PAIRS, FORMATS, DEFAULT_FORMAT, TEXT_SUGGESTIONS, WIDTHS, WEIGHTS, styleName,
-  ANIM_DEFAULTS, MAX_ROWS_PER_STYLE, newSeed,
+  ANIM_DEFAULTS, MAX_ROWS_PER_STYLE, newSeed, normalizeAnim, STRUCTURE,
 } from '../core/index.js';
 import { panel, el, chips, slider } from './controls.js';
 import { createLibraryView, encodeShare, decodeShare } from './library.js';
@@ -275,6 +275,24 @@ export function startApp({ fonts, host, store }) {
   aside.append(tBox.node, mBox.node, sBox.node, aBox.node, vBox.node);
   $('#variant').addEventListener('click', variant);
 
+  // "Punkt merken": the current state becomes a point of the animation.
+  const pointBtn = $('#markPoint');
+  pointBtn.addEventListener('click', () => {
+    const n = anim.moments.length;
+    const snap = clone(params);
+    for (const k of STRUCTURE) delete snap[k];
+    setAnim({ moments: [...anim.moments, { params: snap }], durations: [...anim.durations.slice(0, n), 2] });
+    pointBtn.classList.remove('flash'); void pointBtn.offsetWidth; pointBtn.classList.add('flash');
+    flash(`Punkt ${n + 1} gemerkt` + (n + 1 < 2
+      ? ' — jetzt etwas ändern (Schnitt, Variante, Größe …) und noch einen Punkt merken: die Animation läuft von Punkt zu Punkt (Tab „Animation“).'
+      : ' — im Tab „Animation“ abspielen und exportieren.'), 'success');
+  });
+  function syncPoints() {
+    const n = anim.moments.length;
+    $('#pointBadge').textContent = n ? String(n) : '';
+    $('#animCount').textContent = n ? String(n) : '';
+  }
+
   function variant() { set({ seed: newSeed(), ref: null }); }
   function dropLetters() { return params.ref && params.ref.letters ? { ...params.ref, letters: undefined } : params.ref; }
   function dropXs() { return params.ref && params.ref.xs ? (params.ref.letters ? { letters: params.ref.letters } : null) : params.ref; }
@@ -387,16 +405,25 @@ export function startApp({ fonts, host, store }) {
     params: () => params,
     pair,
     anim: () => anim,
-    setAnim(patch, opts = {}) {
-      anim = { ...anim, ...patch, on: true };
-      if (opts.transient) { animView.light(); return; }
-      commit();
-      animView.sync();
+    setAnim,
+    openPoint: (i) => {
+      params = { ...params, ...clone(anim.moments[i].params) };
+      showTab('tool');
+      update();
+      flash(`Punkt ${i + 1} im Werkzeug geöffnet. Ändern und mit „Punkt merken“ neu aufnehmen.`);
     },
     flash,
     save: (file) => host.save(file),
     fileName,
   });
+
+  function setAnim(patch, opts = {}) {
+    anim = { ...anim, ...patch, on: true };
+    if (opts.transient) { animView.light(); return; }
+    commit();
+    animView.sync();
+    syncPoints();
+  }
 
   // --- state ------------------------------------------------------------------------------------
   function apply(s) {
@@ -405,7 +432,7 @@ export function startApp({ fonts, host, store }) {
       params = { ...base(id), ...clone(s.params) };
     }
     if (s.colorPair && COLOR_PAIRS.some((c) => c.id === s.colorPair)) pairId = s.colorPair;
-    anim = { ...clone(ANIM_DEFAULTS), ...(s.anim ? clone(s.anim) : {}) };
+    anim = normalizeAnim(s.anim ? clone(s.anim) : null);
   }
   function snapshot() { return { v: 1, tool: 'dachmarke', params: clone(params), colorPair: pairId, anim: clone(anim) }; }
 
@@ -423,6 +450,7 @@ export function startApp({ fonts, host, store }) {
     if (document.activeElement !== fw) fw.value = params.width;
     if (document.activeElement !== fh) fh.value = params.height;
     syncExport();
+    syncPoints();
     if (document.body.dataset.tab === 'animation') animView.sync();
     if (queued) return;
     queued = true;

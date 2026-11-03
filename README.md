@@ -25,8 +25,9 @@ opens at `https://npc-88.github.io/DFB_Dachmarke/`.
 - **Text:** type any word or short phrase, or pick one of the examples (*Fußballliebe, Fußball,
   Deutscher Fußballbund, Club 100, Zukunft:sicher*). The text is always set in capitals, and ß
   becomes SS.
-- **Muster:** the three types from the Figma board. Choosing one loads its Figma settings and keeps
-  the current text and format.
+- **Muster:** the three types from the Figma board. They differ only in how the styles mix; every
+  type can be horizontal or turned −90°. Choosing one loads its settings and keeps the current text
+  and format.
 
   | Tool | Figma label | Example |
   |---|---|---|
@@ -55,12 +56,16 @@ opens at `https://npc-88.github.io/DFB_Dachmarke/`.
   - **PNG**.
   - Each export can include the background as its own layer or leave it transparent. Rows are
     named `Zeile_01`, `Zeile_02` … in the layer list.
-- **Animation:** the letters move along the font's variable axes (width, weight or both). Rows keep
-  their starting point, so the lines reflow as letters grow and shrink. Every movement loops.
-  - *Welle* (wave): runs along the rows, letter by letter.
-  - *Atmen* (breathe): all letters widen and narrow together.
-  - *Schnittwechsel* (style change): each Schnittmix letter changes to another width and back; in
-    *3 Schnitte* the rows swap their styles.
+- **Animation with points** (as in the national-team tool): *Punkt merken* stores the current state
+  as a point, as many as wanted. The animation runs from point to point and loops.
+  - What moves between points: styles (Schnittmix letters change width letter by letter), font
+    size, line spacing, margin, spacing and the start of every row (rows slide). Text, pattern,
+    direction, position, row count, italic and format stay as set in the tool.
+  - Points: reorder, time to the next point, open in the tool, delete. Transition smooth or
+    linear; loop or back and forth.
+  - Optional effect on top, along the variable axes (width, weight or both): *Welle* (a wave runs
+    along the rows), *Atmen* (all letters together), *Schnittwechsel* (letters change style and
+    back). It also works without points.
   - Export as MP4 (Chrome, Edge, Safari) or GIF, at 100 % or 50 %, 25 or 30 fps.
 - **Bibliothek** (library): saved patterns with their animation. Each can be opened, shared as a
   link, renamed or deleted. Light and dark interface.
@@ -109,7 +114,9 @@ Pro*, frames `Graf_Typopattern_1/2/3`, 441 × 624):
 
   The *Zurücksetzen* (reset) button restores these values exactly.
 - **3 Schnitte:**
-  - Turned −90°, 3 columns at the right edge, 26.9 px, about 29 px apart.
+  - On the board: turned −90°, 3 columns at the right edge, 26.9 px, about 29 px apart. Team
+    decision: horizontal by default (size and spacing as CLUB 100), turning is an option for every
+    pattern.
   - Phrase lengths 636, 308 and 201 px → Super Extended Black, Condensed Black, Compressed Bold,
     italic.
 - **Schnittmix:**
@@ -139,7 +146,8 @@ Pro*, frames `Graf_Typopattern_1/2/3`, 441 × 624):
 - Schnittmix widths are random per seed, within limits: width range, share of wide letters, and
   wide letters in a row.
 - Formats are chosen by the user, with presets.
-- Animation moves the variable font.
+- Animation moves the variable font, from point to point (any number of points).
+- 3 Schnitte = three rows, one style each; every pattern can be horizontal or vertical.
 - The library and animation export follow the national-team tool.
 
 **Implementation proposals, awaiting feedback:**
