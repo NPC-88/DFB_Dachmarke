@@ -14,7 +14,7 @@ import { createAnimationView } from './animation.js';
 import { drawModel } from './render.js';
 
 const clone = (o) => JSON.parse(JSON.stringify(o));
-const LOGO_MIN = 0.10, LOGO_MAX = 0.25;   // logo plate, share of the shorter side (default 1/7)
+const LOGO_MIN = 0.10, LOGO_MAX = 0.30;   // logo plate, share of the shorter side (default 1/7)
 const ZOOMS = [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4];
 const AUTHOR_KEY = 'dfb-dachmarke-author';
 const THEME_KEY = 'dfb-dachmarke-theme';
@@ -315,7 +315,7 @@ export function startApp({ fonts, host, store }) {
   });
   lStyle.append(lSw);
   add(lBox.body, { node: lStyle, when: () => lg().on, sync: () => lBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.id === lg().style))) });
-  const lSize = slider({ key: 'logoSize', label: 'Größe (% der kurzen Seite)', min: 10, max: 25, step: 0.1, unit: '%' }, (v, tr) => setLogo({ size: v / 100 }, { transient: tr }));
+  const lSize = slider({ key: 'logoSize', label: 'Größe (% der kurzen Seite)', min: 10, max: 30, step: 0.1, unit: '%' }, (v, tr) => setLogo({ size: v / 100 }, { transient: tr }));
   add(lBox.body, { node: lSize.node, when: () => lg().on, sync: () => lSize.set(+(lg().size * 100).toFixed(1)) });
   const lRow = el('div', { class: 'seed-row' });
   const lStd = el('button', { type: 'button', class: 'btn btn-ghost btn-small' }, 'Standardgröße (1/7)');

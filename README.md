@@ -65,7 +65,7 @@ opens at `https://npc-88.github.io/DFB_Dachmarke/`.
     block.
   - Colours: Mint on Dunkelgrün, Mint on Akzentviolett, Dunkelgrün on Akzentgrün, Akzentgrün on
     Dunkelgrün, or no plate (Dunkelgrün mark).
-  - Size: starts at 1/7 of the shorter side (the template's *Logobreite*, 63 px in 441); 10–25 %. In the preview: drag to move, drag the corner to resize, × (or Delete) to remove,
+  - Size: starts at 1/7 of the shorter side (the template's *Logobreite*, 63 px in 441); 10–30 %. In the preview: drag to move, drag the corner to resize, × (or Delete) to remove,
     arrow keys to nudge. The logo is part of every export (own layer `Logo` in the SVG) and stays
     fixed in animations.
 - **Format:** Hochformat A (the Figma frame proportions, 1 : √2), 1 : 1, 4 : 5, 9 : 16, 16 : 9, or
