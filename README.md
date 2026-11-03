@@ -107,10 +107,10 @@ only exported as video.
 
 ### Team library
 
-The tool uses the same Firebase project as the national-team tool, with its own collection
-`dachmarke`. Until the Firestore rules allow that collection, the library falls back to
-"this browser only" without errors. To share one library across the team, add this block next to
-the existing `patterns` block in *Firestore → Rules* and publish:
+**Connected** (Firebase project `dfbsp-8a077`, the same as the national-team tool, own collection
+`dachmarke`; rules published). If the library cannot be reached, the tool falls back to "this
+browser only" without errors. The rule block for the collection, next to the `patterns` block in
+*Firestore → Rules*:
 
 ```
 match /dachmarke/{id} {
