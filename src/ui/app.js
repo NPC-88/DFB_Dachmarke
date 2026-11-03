@@ -14,6 +14,7 @@ import { createAnimationView } from './animation.js';
 import { drawModel } from './render.js';
 
 const clone = (o) => JSON.parse(JSON.stringify(o));
+const LOGO_MIN = 0.10, LOGO_MAX = 0.25;   // logo plate, share of the shorter side (default 1/7)
 const ZOOMS = [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4];
 const AUTHOR_KEY = 'dfb-dachmarke-author';
 const THEME_KEY = 'dfb-dachmarke-theme';
@@ -243,7 +244,7 @@ export function startApp({ fonts, host, store }) {
   add(aBox.body, { node: sizeS.node, sync: () => sizeS.set(+(params.size * 100).toFixed(1)) });
   const lhS = slider({ key: 'lineHeight', label: 'Zeilenabstand', min: 0.74, max: 1.6, step: 0.01, unit: '×' }, (v, tr) => set({ lineHeight: v }, { transient: tr }));
   add(aBox.body, { node: lhS.node, sync: () => lhS.set(params.lineHeight) });
-  const marginS = slider({ key: 'margin', label: 'Abstand zum Rand (negativ = angeschnitten)', min: -20, max: 30, step: 0.5, unit: '%' }, (v, tr) => set({ margin: v / 100 }, { transient: tr }));
+  const marginS = slider({ key: 'margin', label: 'Abstand zum Rand', min: -20, max: 30, step: 0.5, unit: '%' }, (v, tr) => set({ margin: v / 100 }, { transient: tr }));
   add(aBox.body, { node: marginS.node, when: () => params.band === 'end' || params.band === 'start', sync: () => marginS.set(+(params.margin * 100).toFixed(1)) });
   const blockS = slider({ key: 'blockX', label: 'Block verschieben (links / rechts)', min: -50, max: 50, step: 0.25, unit: '%' }, (v, tr) => set({ blockX: v / 100 }, { transient: tr }));
   add(aBox.body, {
@@ -300,7 +301,7 @@ export function startApp({ fonts, host, store }) {
     over: 'Auf der Typografie, die Zeilen laufen darunter weiter (Figma: Podcast-Kachel).',
     fit: 'In die Typografie eingepasst: die Zeilen öffnen sich um das Logo und laufen danach weiter — vor allem für 1 Schnitt (Figma: Organisation).',
   };
-  add(lBox.body, { node: lHint, when: () => lg().on, sync: () => { lHint.textContent = LHINTS[lg().mode] + ' In der Vorschau verschieben, an der Ecke größer/kleiner ziehen, mit × entfernen.'; } });
+  add(lBox.body, { node: lHint, when: () => lg().on, sync: () => { lHint.textContent = LHINTS[lg().mode] + ' In der Vorschau verschieben, an der Ecke größer/kleiner ziehen, mit × entfernen.' + (lg().mode === 'fit' && lg().snap !== false ? ' Mit ‹ › neben dem Logo öffnet eine Zeile an der Wortlücke davor / danach.' : ''); } });
   const lStyle = el('div', { class: 'chip-group' });
   lStyle.append(el('span', { class: 'group-label' }, 'Farbe'));
   const lSw = el('div', { class: 'pair-grid', role: 'radiogroup', 'aria-label': 'Logofarbe' });
@@ -314,7 +315,7 @@ export function startApp({ fonts, host, store }) {
   });
   lStyle.append(lSw);
   add(lBox.body, { node: lStyle, when: () => lg().on, sync: () => lBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.id === lg().style))) });
-  const lSize = slider({ key: 'logoSize', label: 'Größe (% der kurzen Seite)', min: 6, max: 40, step: 0.5, unit: '%' }, (v, tr) => setLogo({ size: v / 100 }, { transient: tr }));
+  const lSize = slider({ key: 'logoSize', label: 'Größe (% der kurzen Seite)', min: 10, max: 25, step: 0.1, unit: '%' }, (v, tr) => setLogo({ size: v / 100 }, { transient: tr }));
   add(lBox.body, { node: lSize.node, when: () => lg().on, sync: () => lSize.set(+(lg().size * 100).toFixed(1)) });
   const lRow = el('div', { class: 'seed-row' });
   const lStd = el('button', { type: 'button', class: 'btn btn-ghost btn-small' }, 'Standardgröße (1/7)');
@@ -357,7 +358,7 @@ export function startApp({ fonts, host, store }) {
     const pt = framePt(e), W = params.width, H = params.height, short = Math.min(W, H);
     if (drag.resize) {
       const half = Math.max(Math.abs(pt.x - drag.cx), Math.abs(pt.y - drag.cy));
-      setLogo({ size: Math.min(0.6, Math.max(0.04, (2 * half) / short)) }, { transient: true });
+      setLogo({ size: Math.min(LOGO_MAX, Math.max(LOGO_MIN, (2 * half) / short)) }, { transient: true });
     } else {
       moveLogoTo(pt.x - drag.dx, pt.y - drag.dy, { transient: true });
     }
@@ -383,6 +384,43 @@ export function startApp({ fonts, host, store }) {
     else setLogo({ ox: (x - model.bandCenter.x) / short, oy: (y - model.bandCenter.y) / short }, opts);
   }
 
+  // --- In der Typo: ‹ › next to the logo open a row at the previous / next word gap ------
+  const gapLayer = el('div', { class: 'gap-layer' });
+  stage.append(gapLayer);
+  function stepGap(r, d) {
+    const len = params.orientation === 'vertical' ? params.height : params.width;
+    const rs = Array.from({ length: model.rows.length }, (_, i) => (params.rowShift && params.rowShift[i]) || 0);
+    // the other opened rows keep the gap they show now (pinned by hand)
+    model.rows.forEach((row, i) => { if (i !== r && row.opened && !rs[i]) rs[i] = (row.opened.cur || 1e-6) / len; });
+    rs[r] += d / len;
+    set({ rowShift: rs });
+  }
+  function syncGapArrows() {
+    gapLayer.replaceChildren();
+    const b = model && model.logo;
+    if (!b || b.mode !== 'fit' || lg().snap === false) return;
+    const cap = engine.font.capHeight / engine.font.unitsPerEm * model.fontSize;
+    const W = params.width, H = params.height, vert = params.orientation === 'vertical';
+    model.rows.forEach((row, r) => {
+      if (!row.opened) return;
+      const mid = row.baseline - cap / 2;
+      const put = (dir, d) => {
+        if (d == null) return;
+        const btn = el('button', { type: 'button', class: 'gap-btn' + (vert ? ' vert' : ''), 'aria-label': dir < 0 ? 'Logo eine Wortlücke früher' : 'Logo eine Wortlücke später', 'data-tip': dir < 0 ? 'Wortlücke davor' : 'Wortlücke danach' });
+        btn.textContent = dir < 0 ? '‹' : '›';
+        // horizontal: left / right of the plate on the row; vertical: below / above it
+        const gap = ((lg().pad ?? 0.31) * model.fontSize) / 2;      // in the middle of the free space
+        const x = vert ? mid : (dir < 0 ? b.x - gap : b.x + b.size + gap);
+        const y = vert ? (dir < 0 ? b.y + b.size + gap : b.y - gap) : mid;
+        Object.assign(btn.style, { left: (x / W) * 100 + '%', top: (y / H) * 100 + '%' });
+        btn.addEventListener('click', () => stepGap(r, d));
+        gapLayer.append(btn);
+      };
+      put(-1, row.opened.prev);
+      put(1, row.opened.next);
+    });
+  }
+
   // --- rows on the preview (1 Schnitt): drag a row sideways ---------------------------
   const rowLayer = el('div', { class: 'row-layer' });
   stage.insertBefore(rowLayer, logoEl);
@@ -398,7 +436,10 @@ export function startApp({ fonts, host, store }) {
         e.preventDefault();
         strip.setPointerCapture(e.pointerId);
         const r = +strip.dataset.row;
-        rowDrag = { r, start: e, base: (params.rowShift && params.rowShift[r]) || 0 };
+        const len = params.orientation === 'vertical' ? params.height : params.width;
+        const rs = Array.from({ length: model.rows.length }, (_, i) => (params.rowShift && params.rowShift[i]) || 0);
+        model.rows.forEach((row, i) => { if (i !== r && row.opened && !rs[i]) rs[i] = (row.opened.cur || 1e-6) / len; });   // others keep their gap
+        rowDrag = { r, start: e, base: rs[r], rs };
         strip.classList.add('dragging');
       });
       strip.addEventListener('pointermove', (e) => {
@@ -406,7 +447,7 @@ export function startApp({ fonts, host, store }) {
         const rect = stage.getBoundingClientRect();
         const vertical = params.orientation === 'vertical';
         const d = vertical ? -(e.clientY - rowDrag.start.clientY) / rect.height : (e.clientX - rowDrag.start.clientX) / rect.width;
-        const rs = Array.from({ length: model.rows.length }, (_, i) => (params.rowShift && params.rowShift[i]) || 0);
+        const rs = rowDrag.rs.slice();
         rs[rowDrag.r] = rowDrag.base + d;
         set({ rowShift: rs }, { transient: true });
       });
@@ -628,6 +669,7 @@ export function startApp({ fonts, host, store }) {
     stage.style.background = pair().background;
     syncLogoBox();
     syncRowStrips();
+    syncGapArrows();
     layoutStage();
   }
 

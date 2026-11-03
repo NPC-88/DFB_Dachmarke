@@ -22,9 +22,18 @@ const path = require('path');
   await p.fill('#ctl-text', 'Fußball'); await p.dispatchEvent('#ctl-text', 'change'); await p.waitForTimeout(300); await shot('4-text');
   // logo: on, In der Typo (1 Schnitt), drag, resize, remove
   await p.click('.chip[data-value="single"]'); await p.fill('#ctl-text', 'Club 100'); await p.dispatchEvent('#ctl-text', 'change');
-  await p.click('text=Logo im Layout');
+  await p.getByRole('switch', { name: 'Logo im Layout' }).click();
   await p.click('.chip[data-value="fit"]'); await p.waitForTimeout(300);
-  await p.evaluate(() => window.scrollTo(0, 0));
+  const sy = await p.evaluate(() => window.scrollY);
+  if (sy !== 0) errors.push('page scrolled by ' + sy + ' px after clicking in the logo panel');
+  // default In der Typo: rows open at alternating word gaps; › moves one row to the next gap
+  const gapsAt = () => p.evaluate(() => { const m = window.dfbPattern.model; return m.rows.filter((r) => r.opened).map((r) => r.glyphs.filter((g) => g.x < m.logo.x).slice(-1)[0].chars + '|' + r.glyphs.find((g) => g.x > m.logo.x).chars); });
+  const g0 = await gapsAt();
+  await p.locator('.gap-btn').nth(1).click(); await p.waitForTimeout(250);
+  const g1 = await gapsAt();
+  console.log('gaps', g0.join(' '), '→', g1.join(' '));
+  if (g0.join() === g1.join()) errors.push('gap arrow did not change the row');
+  await shot('9-logo-gaps');
   const box = await p.locator('.logo-box').boundingBox();
   await p.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await p.mouse.down();
   await p.mouse.move(box.x + box.width / 2 + 60, box.y + box.height / 2 - 25, { steps: 6 }); await p.mouse.up();
@@ -49,7 +58,7 @@ const path = require('path');
   await p.click('.chip[data-value="free"]'); await p.waitForTimeout(200); await shot('9-logo-free');
   await p.hover('.logo-box'); await p.click('.logo-del'); await p.waitForTimeout(200);
   console.log('after delete on =', await p.evaluate(() => window.dfbPattern.params.logo.on), 'box hidden =', await p.isHidden('.logo-box'));
-  await p.click('text=Logo im Layout'); await p.click('.chip[data-value="fit"]');
+  await p.getByRole('switch', { name: 'Logo im Layout' }).click(); await p.click('.chip[data-value="fit"]');
   // export popover + downloads
   await p.click('#download'); await p.waitForTimeout(200); await shot('5-export');
   for (const kind of ['svg-outlines', 'svg-text', 'png']) {

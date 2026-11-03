@@ -57,15 +57,15 @@ opens at `https://npc-88.github.io/DFB_Dachmarke/`.
   - *In der Typo* — fitted into the typography: rows that cross the plate open up around it and
     continue after it, mainly for 1 Schnitt (Organisation, 53:106 — reproduced exactly). The gap
     is measured on the ink of the letters, the same on both sides (default 0.31 em = 22 px at
-    70 px, as in Figma). *An Wortgrenzen öffnen* (on by default) opens each row at the word space
-    nearest to the logo, so no word is cut; sliding a row moves the logo from one word gap to the
-    next.
+    70 px, as in Figma). *An Wortgrenzen öffnen* (on by default) opens each row at a word space, so no word
+    is cut: the nearest one, and neighbouring rows use different word gaps (as in Figma: 00 ▢ CL /
+    UB ▢ 10). The ‹ › buttons next to the logo open a row at the previous / next word gap; the
+    other rows keep theirs.
   - Über / In der Typo: the logo position is relative to the pattern block, so it moves with the
     block.
   - Colours: Mint on Dunkelgrün, Mint on Akzentviolett, Dunkelgrün on Akzentgrün, Akzentgrün on
     Dunkelgrün, or no plate (Dunkelgrün mark).
-  - Size: default 1/7 of the shorter side (the template's *Logobreite*, 63 px in 441); slider
-    6–40 %. In the preview: drag to move, drag the corner to resize, × (or Delete) to remove,
+  - Size: starts at 1/7 of the shorter side (the template's *Logobreite*, 63 px in 441); 10–25 %. In the preview: drag to move, drag the corner to resize, × (or Delete) to remove,
     arrow keys to nudge. The logo is part of every export (own layer `Logo` in the SVG) and stays
     fixed in animations.
 - **Format:** Hochformat A (the Figma frame proportions, 1 : √2), 1 : 1, 4 : 5, 9 : 16, 16 : 9, or

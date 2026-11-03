@@ -145,6 +145,7 @@ export function layoutPattern(font, input, motion = null) {
 
   // --- place --------------------------------------------------------------------------
   const rows = [];
+  let prevGap = null;            // word gap used by the row above (opened rows alternate)
   for (let r = 0; r < n; r++) {
     const baseline = first + r * lh;
     if (baseline - cap > vh + lh || baseline < -lh) { rows.push({ baseline, glyphs: [] }); continue; }
@@ -173,32 +174,59 @@ export function layoutPattern(font, input, motion = null) {
       rep++;
       if (rep > 4000) break;
     }
-    if (holeHere) openAround(seq, holeHere);
+    const opened = holeHere ? openAround(seq, holeHere, rowShift(r) ? null : prevGap) : null;   // a row moved by hand keeps the gap it was moved to
+    if (opened) prevGap = rowShift(r) ? null : opened.word;           // alternate only between rows nobody moved
     const glyphs = [];
     for (const g of seq) if (!g.space && g.x + g.adv > -fontSize && g.x < vw + fontSize) glyphs.push({ id: g.id, chars: g.chars, x: g.x, c: g.c, letter: g.letter });
-    rows.push({ baseline, glyphs, opened: !!holeHere });
+    rows.push({ baseline, glyphs, opened });
   }
 
   // Split the row at the logo: the part before ends (ink) `pad` before the plate,
-  // the part after starts (ink) `pad` after it. With `snap` the split is the word
-  // space nearest to the plate's centre, so no word is cut (moving the row moves
-  // the logo from one word gap to the next); without, the first letter that
-  // would touch the plate and everything after it move behind the plate.
-  function openAround(seq, h) {
+  // the part after starts (ink) `pad` after it. With `snap` the split is a word
+  // space, so no word is cut: the one nearest to the plate's centre — but a
+  // different word gap than the row above, when there is one within reach (as
+  // in Figma "Organisation": 00 ▢ CL / UB ▢ 10). Without `snap`, the first letter
+  // that would touch the plate and everything after it move behind the plate.
+  // Returns { word, prev, next, cur }: the gap used (letter index before it) and how
+  // far the row has to move (px, virtual) to open at the previous / next / this gap.
+  function openAround(seq, h, avoid) {
     const hc = (h.l + h.r) / 2;
-    let s = -1;
+    let s = -1, prev = null, next = null;
     if (h.snap) {
-      let best = Infinity;
-      seq.forEach((g, i) => { if (g.space) { const d = Math.abs(g.x + g.adv / 2 - hc); if (d < best) { best = d; s = i; } } });
+      const spaces = [];
+      seq.forEach((g, i) => { if (g.space) spaces.push(i); });
+      // one entry per gap (several spaces in a row = one gap): centre + the letter before it
+      const gaps = [];
+      for (const i of spaces) {
+        if (gaps.length && gaps[gaps.length - 1].last === i - 1) { gaps[gaps.length - 1].last = i; continue; }
+        let k = i - 1; while (k >= 0 && seq[k].space) k--;
+        gaps.push({ first: i, last: i, word: k >= 0 ? seq[k].letter : -1 });
+      }
+      for (const gp of gaps) gp.c = (seq[gp.first].x + seq[gp.last].x + seq[gp.last].adv) / 2;
+      if (gaps.length) {
+        let bi = 0;
+        gaps.forEach((gp, i) => { if (Math.abs(gp.c - hc) < Math.abs(gaps[bi].c - hc)) bi = i; });
+        if (avoid != null && gaps[bi].word === avoid) {
+          // the nearest other kind of gap, if it is not much further away than a word
+          let alt = -1;
+          gaps.forEach((gp, i) => { if (gp.word !== avoid && (alt < 0 || Math.abs(gp.c - hc) < Math.abs(gaps[alt].c - hc))) alt = i; });
+          if (alt >= 0 && Math.abs(gaps[alt].c - hc) < Math.abs(gaps[bi].c - hc) + 0.8 * fontSize * 4) bi = alt;
+        }
+        s = gaps[bi].first;
+        // moving the row by (hc − gap centre) puts a gap right at the plate centre
+        if (bi > 0) prev = hc - gaps[bi - 1].c;
+        if (bi < gaps.length - 1) next = hc - gaps[bi + 1].c;
+        var word = gaps[bi].word, lastSpace = gaps[bi].last, cur = hc - gaps[bi].c;
+      }
     }
     let leftEnd, rightStart;
     if (s >= 0) {
-      leftEnd = s - 1; rightStart = s + 1;
+      leftEnd = s - 1; rightStart = lastSpace + 1;
       while (leftEnd >= 0 && seq[leftEnd].space) leftEnd--;
       while (rightStart < seq.length && seq[rightStart].space) rightStart++;
     } else {
       rightStart = seq.findIndex((g) => !g.space && inkR(g, g.x, g.adv) > h.l - h.pad && inkL(g, g.x) < h.r + h.pad);
-      if (rightStart < 0) return;
+      if (rightStart < 0) return { word: null, prev: null, next: null };
       leftEnd = rightStart - 1;
       while (leftEnd >= 0 && seq[leftEnd].space) leftEnd--;
     }
@@ -209,6 +237,7 @@ export function layoutPattern(font, input, motion = null) {
       else if (i >= rightStart) seq[i].x += dR;
       else seq[i].space = true;                      // the split space itself
     }
+    return { word: s >= 0 ? word : null, prev, next, cur: s >= 0 ? cur : 0 };
   }
 
   return {
