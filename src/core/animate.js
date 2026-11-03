@@ -10,7 +10,7 @@
 //   — Schnittmix letters change width letter by letter), font size, line
 //   spacing, margin, spacing between repeats and the start of every row (rows
 //   slide). What stays as in the tool: text, pattern, direction, position,
-//   number of rows, italic, format.
+//   number of rows, italic, format, logo.
 //
 // Effects (loop seamlessly over the whole animation):
 //   welle   — a wave runs along the rows (each letter a little later)
@@ -36,7 +36,7 @@ export const ANIM_DEFAULTS = {
 };
 
 // Structure: always taken from the tool, never blended.
-export const STRUCTURE = ['text', 'pattern', 'orientation', 'band', 'rows', 'italic', 'width', 'height'];
+export const STRUCTURE = ['text', 'pattern', 'orientation', 'band', 'rows', 'italic', 'width', 'height', 'logo'];
 
 const TAU = Math.PI * 2;
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));

@@ -142,3 +142,30 @@ test('animation points: start at point 1, pass point 2, loop back; rows slide, l
   // pingpong: 1 → 2 → 1
   assert.equal(animLength({ ...a, loop: 'pingpong' }), 4);
 });
+
+test('logo: free / over / fit; fit opens the rows around the plate and keeps the text', () => {
+  const logo = { on: true, mode: 'fit', style: 'dunkelgruen', size: 77 / 441, cx: 0.5, cy: 492.5 / 624 };
+  const plain = at('single');
+  const fit = at('single', { logo });
+  const b = fit.logo;
+  assert.ok(Math.abs(b.size - 77) < 1e-6 && Math.abs(b.mark - 61.405) < 0.01);
+  let opened = 0;
+  fit.rows.forEach((r, i) => {
+    const cap = e.font.capHeight / 1000 * fit.fontSize;
+    const crosses = r.baseline > b.y && r.baseline - cap < b.y + b.size;
+    for (const g of r.glyphs) {
+      const adv = e.font.advance(g.id, g.c, false) * fit.scale;
+      if (crosses) assert.ok(g.x + adv <= b.x || g.x >= b.x + b.size, 'glyph clear of the plate');
+    }
+    if (crosses) { opened++; assert.notDeepEqual(r.glyphs.map((g) => g.x), plain.rows[i].glyphs.map((g) => g.x)); }
+    else assert.deepEqual(r.glyphs, plain.rows[i].glyphs);
+  });
+  assert.equal(opened, 2);                                  // as in Organisation: two rows open
+  const over = at('single', { logo: { ...logo, mode: 'over' } });
+  assert.deepEqual(over.rows, plain.rows);                  // on top: the typography stays
+  const free = at('letters', { logo: { on: true, mode: 'free', style: 'violett', size: 54.4 / 441, cx: null, cy: null } });
+  assert.ok(Math.abs(free.logo.y - 27) < 0.5 && Math.abs(free.logo.x + free.logo.size / 2 - 220.5) < 0.5);   // top centre, safe zone
+  const svg = e.svg(fit, { color: '#C8F2E0' });
+  assert.match(svg, /<g id="Logo" transform="translate\(182 454\)"><rect id="Traegerflaeche" width="77" height="77" rx="4.87" fill="#004941"\/>/);
+  assert.equal(at('single', { logo: { ...logo, on: false } }).logo, null);
+});

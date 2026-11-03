@@ -11,6 +11,7 @@
 //                  with font-variation-settings.
 
 import { staticFace, styleName } from './font.js';
+import { logoSVG } from './logo.js';
 
 export function toSVG(model, font, { color = '#000000', background = null, mode = 'outlines', title = 'DFB Pattern', precision = 2 } = {}) {
   const { width, height } = model;
@@ -34,7 +35,9 @@ export function toSVG(model, font, { color = '#000000', background = null, mode 
     }
   });
 
-  out.push('</g>', '</g>', '</svg>');
+  out.push('</g>', '</g>');
+  if (model.logo) out.push(logoSVG(model.logo));
+  out.push('</svg>');
   return out.join('\n');
 }
 

@@ -5,7 +5,7 @@
 
 import {
   createEngine, PRESETS, COLOR_PAIRS, FORMATS, DEFAULT_FORMAT, TEXT_SUGGESTIONS, WIDTHS, WEIGHTS, styleName,
-  ANIM_DEFAULTS, MAX_ROWS_PER_STYLE, newSeed, variantStyles, normalizeAnim, STRUCTURE,
+  ANIM_DEFAULTS, MAX_ROWS_PER_STYLE, newSeed, variantStyles, LOGO_STYLES, LOGO_MODES, LOGO_DEFAULTS, LOGO_PATH, LOGO_VIEWBOX, normalizeAnim, STRUCTURE,
 } from '../core/index.js';
 import { panel, el, chips, slider } from './controls.js';
 import { createLibraryView, encodeShare, decodeShare } from './library.js';
@@ -22,7 +22,7 @@ const presetOf = (id) => PRESETS.find((p) => p.id === id) || PRESETS[0];
 
 export function startApp({ fonts, host, store }) {
   const engine = createEngine(fonts.upright, fonts.italic);
-  const base = (id) => ({ ...clone(presetOf(id).params), width: DEFAULT_FORMAT.width, height: DEFAULT_FORMAT.height, seed: presetOf(id).params.seed || 1 });
+  const base = (id) => ({ ...clone(presetOf(id).params), width: DEFAULT_FORMAT.width, height: DEFAULT_FORMAT.height, seed: presetOf(id).params.seed || 1, logo: { ...LOGO_DEFAULTS } });
   let params = base('single');
   let pairId = presetOf('single').colorPair;
   let anim = clone(ANIM_DEFAULTS);
@@ -272,7 +272,97 @@ export function startApp({ fonts, host, store }) {
     },
   });
 
-  aside.append(tBox.node, mBox.node, sBox.node, aBox.node, vBox.node);
+  // Logo
+  const lBox = panel('Logo', true);
+  const lg = () => ({ ...LOGO_DEFAULTS, ...(params.logo || {}) });
+  const setLogo = (patch, opts) => set({ logo: { ...lg(), ...patch } }, opts);
+  const lOn = switchRow('Logo im Layout', (on) => setLogo({ on }));
+  add(lBox.body, { node: lOn.node, sync: () => lOn.set(lg().on) });
+  const lMode = chips('Platzierung', LOGO_MODES, (v) => setLogo({ mode: v, on: true, cx: null, cy: null }), { small: true });
+  add(lBox.body, { node: lMode.node, when: () => lg().on, sync: () => lMode.set(lg().mode) });
+  const lHint = el('p', { class: 'hint' });
+  const LHINTS = {
+    free: 'In einer freien Fläche des Layouts, mit Abstand zur Typo (Figma: Gesellschaft).',
+    over: 'Auf der Typografie, die Zeilen laufen darunter weiter (Figma: Podcast-Kachel).',
+    fit: 'In die Typografie eingepasst: die Zeilen öffnen sich um das Logo und laufen danach weiter — vor allem für 1 Schnitt (Figma: Organisation).',
+  };
+  add(lBox.body, { node: lHint, when: () => lg().on, sync: () => { lHint.textContent = LHINTS[lg().mode] + ' In der Vorschau verschieben, an der Ecke größer/kleiner ziehen, mit × entfernen.'; } });
+  const lStyle = el('div', { class: 'chip-group' });
+  lStyle.append(el('span', { class: 'group-label' }, 'Farbe'));
+  const lSw = el('div', { class: 'pair-grid', role: 'radiogroup', 'aria-label': 'Logofarbe' });
+  const lBtns = LOGO_STYLES.map((st) => {
+    const b = el('button', { type: 'button', class: 'pair logo-swatch', title: `${st.name} — ${st.source}`, 'aria-label': st.name, 'data-id': st.id });
+    b.style.background = st.plate || 'transparent';
+    b.innerHTML = `<svg viewBox="0 0 ${LOGO_VIEWBOX} ${LOGO_VIEWBOX}" width="20" height="20"><path d="${LOGO_PATH}" fill="${st.mark}"/></svg>`;
+    b.addEventListener('click', () => setLogo({ style: st.id }));
+    lSw.append(b);
+    return b;
+  });
+  lStyle.append(lSw);
+  add(lBox.body, { node: lStyle, when: () => lg().on, sync: () => lBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.id === lg().style))) });
+  const lSize = slider({ key: 'logoSize', label: 'Größe (% der kurzen Seite)', min: 6, max: 40, step: 0.5, unit: '%' }, (v, tr) => setLogo({ size: v / 100 }, { transient: tr }));
+  add(lBox.body, { node: lSize.node, when: () => lg().on, sync: () => lSize.set(+(lg().size * 100).toFixed(1)) });
+  const lRow = el('div', { class: 'seed-row' });
+  const lStd = el('button', { type: 'button', class: 'btn btn-ghost btn-small' }, 'Standardgröße (1/7)');
+  lStd.addEventListener('click', () => setLogo({ size: LOGO_DEFAULTS.size }));
+  const lPos = el('button', { type: 'button', class: 'btn btn-ghost btn-small' }, 'Position zurücksetzen');
+  lPos.addEventListener('click', () => setLogo({ cx: null, cy: null }));
+  lRow.append(lStd, lPos);
+  add(lBox.body, { node: lRow, when: () => lg().on });
+
+  aside.append(tBox.node, mBox.node, sBox.node, aBox.node, lBox.node, vBox.node);
+
+  // --- logo on the preview: drag to move, corner to resize, × to remove --------------------
+  const logoEl = el('div', { class: 'logo-box', tabindex: '0', role: 'group', 'aria-label': 'Logo — verschieben mit Maus oder Pfeiltasten, Entf zum Entfernen' });
+  const logoDel = el('button', { type: 'button', class: 'logo-del', 'aria-label': 'Logo entfernen', 'data-tip': 'Logo entfernen' });
+  logoDel.append(icon('close', 14));
+  const logoGrip = el('span', { class: 'logo-grip', 'aria-hidden': 'true' });
+  logoEl.append(logoDel, logoGrip);
+  stage.append(logoEl);
+  logoDel.addEventListener('pointerdown', (e) => e.stopPropagation());
+  logoDel.addEventListener('click', () => { setLogo({ on: false }); flash('Logo entfernt — im Panel „Logo“ wieder einschalten.'); });
+  let drag = null;
+  const framePt = (e) => {
+    const r = stage.getBoundingClientRect();
+    return { x: ((e.clientX - r.left) / r.width) * params.width, y: ((e.clientY - r.top) / r.height) * params.height };
+  };
+  logoEl.addEventListener('pointerdown', (e) => {
+    if (!model || !model.logo) return;
+    e.preventDefault();
+    logoEl.focus();
+    logoEl.setPointerCapture(e.pointerId);
+    const b = model.logo, pt = framePt(e);
+    drag = { resize: e.target === logoGrip, dx: pt.x - (b.x + b.size / 2), dy: pt.y - (b.y + b.size / 2), cx: b.x + b.size / 2, cy: b.y + b.size / 2 };
+  });
+  logoEl.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const pt = framePt(e), W = params.width, H = params.height, short = Math.min(W, H);
+    if (drag.resize) {
+      const half = Math.max(Math.abs(pt.x - drag.cx), Math.abs(pt.y - drag.cy));
+      setLogo({ size: Math.min(0.6, Math.max(0.04, (2 * half) / short)) }, { transient: true });
+    } else {
+      setLogo({ cx: Math.min(1, Math.max(0, (pt.x - drag.dx) / W)), cy: Math.min(1, Math.max(0, (pt.y - drag.dy) / H)) }, { transient: true });
+    }
+  });
+  const endDrag = () => { if (drag) { drag = null; update(); } };
+  logoEl.addEventListener('pointerup', endDrag);
+  logoEl.addEventListener('pointercancel', endDrag);
+  logoEl.addEventListener('keydown', (e) => {
+    if (!model || !model.logo) return;
+    if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); setLogo({ on: false }); return; }
+    const mv = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+    if (!mv) return;
+    e.preventDefault();
+    const b = model.logo, W = params.width, H = params.height;
+    const step = (e.shiftKey ? 0.02 : 0.005) * Math.min(W, H);            // px
+    setLogo({ cx: (b.x + b.size / 2 + mv[0] * step) / W, cy: (b.y + b.size / 2 + mv[1] * step) / H });
+  });
+  function syncLogoBox() {
+    const b = model && model.logo;
+    logoEl.hidden = !b;
+    if (!b) return;
+    Object.assign(logoEl.style, { left: (b.x / params.width) * 100 + '%', top: (b.y / params.height) * 100 + '%', width: (b.size / params.width) * 100 + '%', height: (b.size / params.height) * 100 + '%' });
+  }
   $('#variant').addEventListener('click', variant);
 
   // "Punkt merken": the current state becomes a point of the animation.
@@ -305,7 +395,7 @@ export function startApp({ fonts, host, store }) {
   function switchPattern(id) {
     if (id === params.pattern) return;
     const b = base(id);
-    params = { ...b, text: params.text, width: params.width, height: params.height };
+    params = { ...b, text: params.text, width: params.width, height: params.height, logo: params.logo };
     update();
   }
 
@@ -318,7 +408,7 @@ export function startApp({ fonts, host, store }) {
 
   // --- reset ---------------------------------------------------------------------------
   $('#reset').addEventListener('click', () => {
-    params = { ...base(params.pattern), width: params.width, height: params.height };
+    params = { ...base(params.pattern), width: params.width, height: params.height, logo: params.logo };
     pairId = presetOf(params.pattern).colorPair;
     anim = clone(ANIM_DEFAULTS);
     zoom = 'fit';
@@ -434,6 +524,7 @@ export function startApp({ fonts, host, store }) {
     if (s.params) {
       const id = presetOf(s.params.pattern).id;
       params = { ...base(id), ...clone(s.params) };
+      params.logo = { ...LOGO_DEFAULTS, ...(s.params.logo || {}) };
     }
     if (s.colorPair && COLOR_PAIRS.some((c) => c.id === s.colorPair)) pairId = s.colorPair;
     anim = normalizeAnim(s.anim ? clone(s.anim) : null);
@@ -465,6 +556,7 @@ export function startApp({ fonts, host, store }) {
     model = engine.layout(params);
     art.innerHTML = engine.svg(model, { color: pair().color, mode: 'outlines', precision: 1 });
     stage.style.background = pair().background;
+    syncLogoBox();
     layoutStage();
   }
 

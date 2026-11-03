@@ -47,6 +47,18 @@ opens at `https://npc-88.github.io/DFB_Dachmarke/`.
 - **Variante:** *Neue Variante* rearranges the pattern and keeps every setting. The variant number
   (seed) stores the arrangement, so the same number always gives the same pattern, also in a link
   or in the library. Typing a number brings back that variant.
+- **Logo** (Picturemark from the UI Library's *Logo* component, on a plate as in the layouts):
+  - *Freie Fläche* — in a free area, by default top centre inside the safe zone (Figma
+    Gesellschaft, 53:217).
+  - *Über der Typo* — on top of the pattern, the rows run on underneath (Podcast tile, 47:5457).
+  - *In der Typo* — fitted into the typography: rows that cross the plate open up around it and
+    continue after it, mainly for 1 Schnitt (Organisation, 53:106 — reproduced to the pixel).
+  - Colours: Mint on Dunkelgrün, Mint on Akzentviolett, Dunkelgrün on Akzentgrün, Akzentgrün on
+    Dunkelgrün, or no plate (Dunkelgrün mark).
+  - Size: default 1/7 of the shorter side (the template's *Logobreite*, 63 px in 441); slider
+    6–40 %. In the preview: drag to move, drag the corner to resize, × (or Delete) to remove,
+    arrow keys to nudge. The logo is part of every export (own layer `Logo` in the SVG) and stays
+    fixed in animations.
 - **Format:** Hochformat A (the Figma frame proportions, 1 : √2), 1 : 1, 4 : 5, 9 : 16, 16 : 9, or
   any custom size.
 - **Farbe** (colour): only the pairs used on the board (see below).

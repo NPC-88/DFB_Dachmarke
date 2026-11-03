@@ -21,6 +21,7 @@
 
 import { WIDTHS } from './font.js';
 import { stream } from './random.js';
+import { logoBox, defaultCenter } from './logo.js';
 
 export const LAYOUT_DEFAULTS = {
   text: 'Fußballliebe',
@@ -43,6 +44,7 @@ export const LAYOUT_DEFAULTS = {
   seed: 1,
   ref: null,                   // reference values from Figma ({ xs, letters }); dropped on a new variation
   altMap: null,                // animation 'wechsel': second per-letter mapping (set by the engine)
+  logo: null,                  // { on, mode: 'free' | 'over' | 'fit', style, size, cx, cy } (see logo.js)
 };
 
 export const MAX_ROWS_PER_STYLE = 3;   // "max 3 Zeilen" for the rows pattern
@@ -111,6 +113,24 @@ export function layoutPattern(font, input, motion = null) {
   const units = Array.from({ length: n }, (_, r) => shapeUnit(r, false));
   const starts = rowStarts(n, units.map((u) => u.length), vw, p);
 
+  // --- band of the pattern (frame px) and the logo ---------------------------------------
+  const vTop = Math.max(0, first - cap), vBottom = Math.min(vh, first + (n - 1) * lh);
+  const bandBox = vertical
+    ? { x: vTop, y: 0, w: vBottom - vTop, h: H }
+    : { x: 0, y: vTop, w: W, h: vBottom - vTop };
+  const logo = p.logo && p.logo.on
+    ? logoBox(p.logo, W, H, defaultCenter(p.logo.mode, p.logo.size, { width: W, height: H, rotate: vertical, bandBox }))
+    : null;
+  // "In der Typo": rows that cross the plate open up around it and continue
+  // after it (as CLUB 100 in Organisation). Hole in virtual coordinates.
+  let hole = null;
+  if (logo && logo.mode === 'fit') {
+    const padX = 0.15 * fontSize;
+    const hx = vertical ? H - (logo.y + logo.size) : logo.x;
+    const hy = vertical ? logo.x : logo.y;
+    hole = { l: hx - padX, r: hx + logo.size + padX, t: hy, b: hy + logo.size };
+  }
+
   // --- place --------------------------------------------------------------------------
   const rows = [];
   for (let r = 0; r < n; r++) {
@@ -120,6 +140,8 @@ export function layoutPattern(font, input, motion = null) {
     let x = starts[r];
     if (x > 0 && p.pattern !== 'letters') x -= Math.ceil(x / L) * L;    // tiled rows never start inside the frame
     const glyphs = [];
+    const holeHere = hole && baseline > hole.t && baseline - cap < hole.b ? hole : null;
+    const flow = motion || holeHere;
     let rep = 0;
     while (x < vw) {
       let gx = x;
@@ -129,10 +151,14 @@ export function layoutPattern(font, input, motion = null) {
           c = motion(g.c, { row: r, letter: g.letter, rep, x: gx / vw, rows: n, map: letterMap, alt: p.altMap });
           if (c !== g.c) adv = font.advance(g.id, c, it) * scale + (g.advance - font.advance(g.id, g.c, it) * scale);
         }
+        if (holeHere && gx + adv > holeHere.l && gx < holeHere.r) {
+          if (g.space) { gx = Math.max(gx, holeHere.r); continue; }
+          gx = holeHere.r;
+        }
         if (!g.space && gx + adv > -fontSize && gx < vw + fontSize) glyphs.push({ id: g.id, chars: g.chars, x: gx, c: font.norm(c), letter: g.letter });
         gx += adv;
       }
-      x = motion ? gx + gapPx : x + L;
+      x = flow ? gx + gapPx : x + L;
       rep++;
       if (rep > 4000) break;
     }
@@ -147,6 +173,8 @@ export function layoutPattern(font, input, motion = null) {
     rows,
     letterMap,
     starts,
+    bandBox,
+    logo,
   };
 }
 

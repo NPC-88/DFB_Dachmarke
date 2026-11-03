@@ -1,3 +1,5 @@
+import { LOGO_PATH, LOGO_VIEWBOX } from '../core/logo.js';
+
 // Draw a layout model straight onto a 2D canvas (animation preview, video
 // frames, PNG export, thumbnails). `k` scales frame pixels to canvas pixels.
 
@@ -24,6 +26,24 @@ export function drawModel(ctx, model, font, { color, background, k = 1 }) {
     }
   }
   ctx.restore();
+  if (model.logo) drawLogo(ctx, model.logo, k);
+}
+
+let logoPath = null;
+function drawLogo(ctx, b, k) {
+  ctx.setTransform(k, 0, 0, k, b.x * k, b.y * k);
+  if (b.plateColor) {
+    ctx.fillStyle = b.plateColor;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(0, 0, b.size, b.size, b.radius); else ctx.rect(0, 0, b.size, b.size);
+    ctx.fill();
+  }
+  if (!logoPath) logoPath = new Path2D(LOGO_PATH);
+  const off = (b.size - b.mark) / 2, s = b.mark / LOGO_VIEWBOX;
+  ctx.setTransform(k * s, 0, 0, k * s, (b.x + off) * k, (b.y + off) * k);
+  ctx.fillStyle = b.markColor;
+  ctx.fill(logoPath);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
 }
 
 const paths = new Map();

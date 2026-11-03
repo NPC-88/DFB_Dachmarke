@@ -20,6 +20,28 @@ const path = require('path');
   }
   await p.click('#variant'); await p.waitForTimeout(300); await shot('3-variant');
   await p.fill('#ctl-text', 'Fußball'); await p.dispatchEvent('#ctl-text', 'change'); await p.waitForTimeout(300); await shot('4-text');
+  // logo: on, In der Typo (1 Schnitt), drag, resize, remove
+  await p.click('.chip[data-value="single"]'); await p.fill('#ctl-text', 'Club 100'); await p.dispatchEvent('#ctl-text', 'change');
+  await p.click('text=Logo im Layout');
+  await p.click('.chip[data-value="fit"]'); await p.waitForTimeout(300);
+  await p.evaluate(() => window.scrollTo(0, 0));
+  const box = await p.locator('.logo-box').boundingBox();
+  await p.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await p.mouse.down();
+  await p.mouse.move(box.x + box.width / 2 + 60, box.y + box.height / 2 - 25, { steps: 6 }); await p.mouse.up();
+  await p.waitForTimeout(200);
+  const b2 = await p.locator('.logo-box').boundingBox();
+  await p.mouse.move(b2.x + b2.width / 2, b2.y + b2.height / 2);
+  const gr = await p.locator('.logo-grip').boundingBox();
+  await p.mouse.move(gr.x + gr.width / 2, gr.y + gr.height / 2); await p.mouse.down();
+  await p.mouse.move(gr.x + 30, gr.y + 30, { steps: 6 }); await p.mouse.up();
+  await p.waitForTimeout(200); await p.hover('.logo-box'); await shot('9-logo-fit');
+  const state = await p.evaluate(() => window.dfbPattern.params.logo);
+  console.log('logo', JSON.stringify(state));
+  await p.click('.chip[data-value="over"]'); await p.waitForTimeout(200); await shot('9-logo-over');
+  await p.click('.chip[data-value="free"]'); await p.waitForTimeout(200); await shot('9-logo-free');
+  await p.hover('.logo-box'); await p.click('.logo-del'); await p.waitForTimeout(200);
+  console.log('after delete on =', await p.evaluate(() => window.dfbPattern.params.logo.on), 'box hidden =', await p.isHidden('.logo-box'));
+  await p.click('text=Logo im Layout'); await p.click('.chip[data-value="fit"]');
   // export popover + downloads
   await p.click('#download'); await p.waitForTimeout(200); await shot('5-export');
   for (const kind of ['svg-outlines', 'svg-text', 'png']) {
