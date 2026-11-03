@@ -5,7 +5,7 @@
 
 import {
   createEngine, PRESETS, COLOR_PAIRS, FORMATS, DEFAULT_FORMAT, TEXT_SUGGESTIONS, WIDTHS, WEIGHTS, styleName,
-  ANIM_DEFAULTS, MAX_ROWS_PER_STYLE, newSeed, normalizeAnim, STRUCTURE,
+  ANIM_DEFAULTS, MAX_ROWS_PER_STYLE, newSeed, variantStyles, normalizeAnim, STRUCTURE,
 } from '../core/index.js';
 import { panel, el, chips, slider } from './controls.js';
 import { createLibraryView, encodeShare, decodeShare } from './library.js';
@@ -293,7 +293,11 @@ export function startApp({ fonts, host, store }) {
     $('#animCount').textContent = n ? String(n) : '';
   }
 
-  function variant() { set({ seed: newSeed(), ref: null }); }
+  // New arrangement — and for 1 Schnitt / 3 Schnitte also new styles within the rules.
+  function variant() {
+    const seed = newSeed();
+    set({ seed, ref: null, ...variantStyles(params.pattern, seed) });
+  }
   function dropLetters() { return params.ref && params.ref.letters ? { ...params.ref, letters: undefined } : params.ref; }
   function dropXs() { return params.ref && params.ref.xs ? (params.ref.letters ? { letters: params.ref.letters } : null) : params.ref; }
 

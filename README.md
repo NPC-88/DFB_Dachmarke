@@ -119,11 +119,19 @@ Pro*, frames `Graf_Typopattern_1/2/3`, 441 × 624):
     pattern.
   - Phrase lengths 636, 308 and 201 px → Super Extended Black, Condensed Black, Compressed Bold,
     italic.
-- **Schnittmix:**
-  - 111.9 px Black Italic, rows 90 px apart, the last row bleeding off the bottom edge.
-  - Rows start at +85, −42, −273 and +120 px.
-  - The letter widths are the board's, and their order repeats identically in every row.
-- **Druk mapping:** the board set patterns 2 and 3 in Druk, a placeholder used before DFB Sans Pro
+- **Schnittmix** (reference: the DFB Sans Pro frame *A4 - 35*, node 47:5393, 278.7 × 394.4):
+  - 66.6 px Black Italic, rows about 53 px apart, the last row bleeding off the bottom edge.
+  - Rows start at −0.5, −70.2, −178.2 and −5.5 px.
+  - Letter widths as set there: F U S S B A L L L I E B E = 60 60 200 100 100 40 100 133 60 100
+    133 80 60, in the same order in every row.
+  - Rules taken from it: always Black Italic; widths 40, 60, 80, 100, 133, 200 (Extended 166 not
+    used); at most one Super Extended per word, the other wide letters Wide (133); about a quarter of
+    the letters wide, never two wide letters side by side; normal and Compact most often; the
+    same width may repeat once, never three times.
+- **Neue Variante** for *1 Schnitt* and *3 Schnitte* also picks new styles within the rules: Bold or
+  Black only (nothing lighter appears on the board); 3 Schnitte gets one wide (Wide or wider), one
+  middle (Condensed / normal) and one narrow (Compressed / Compact) row, in any order.
+- **Druk mapping** (3 Schnitte only now): the board set patterns 2 and 3 in Druk, a placeholder used before DFB Sans Pro
   was available. Their widths are mapped to DFB Sans Pro by measured length:
   - XCondensed → Compressed (40)
   - Condensed → Compact (60)
@@ -135,7 +143,7 @@ Pro*, frames `Graf_Typopattern_1/2/3`, 441 × 624):
   - Mint 01 on Mint 02 (base)
   - Akzentgrün on Mint 02 (Sport)
   - Akzentviolett on Mint 02 (Gesellschaft)
-  - Dunkelgrün on Tiefgrün, and Mint 01 on Dunkelgrün (moodboard)
+  - Tiefgrün on Dunkelgrün (frame A4 - 35), and Mint 01 on Dunkelgrün (moodboard)
 - **UI:** DFB Dachmarke UI Library (violet primary, accent green in dark mode, DFB Sans Pro Wide
   Bold headings, 12 px radii, chips, range sliders, tab bar). The icons come from the DFB icon set.
 

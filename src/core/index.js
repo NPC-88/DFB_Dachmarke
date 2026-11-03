@@ -13,7 +13,7 @@ import { toSVG } from './svg.js';
 import { motionAt, altLetters, normalizeAnim, segmentAt, momentParams, blendParams } from './animate.js';
 
 export { WIDTHS, WEIGHTS, styleName } from './font.js';
-export { LAYOUT_DEFAULTS, MAX_ROWS_PER_STYLE, letterWidths, cleanText } from './layout.js';
+export { LAYOUT_DEFAULTS, MAX_ROWS_PER_STYLE, letterWidths, variantStyles, LETTER_LEVELS, cleanText } from './layout.js';
 export { PALETTE, COLOR_PAIRS, FORMATS, PRESETS, TEXT_SUGGESTIONS, DEFAULT_FORMAT } from './presets.js';
 export { ANIM_DEFAULTS, STRUCTURE, motionAt, animLength, normalizeAnim, segmentAt } from './animate.js';
 export { newSeed } from './random.js';
@@ -49,8 +49,8 @@ export function createEngine(uprightBytes, italicBytes) {
       p = { ...p, ...blendParams(A, B, resolve(A), resolve(B), k) };
     }
     if (a.effect === 'wechsel' && p.pattern === 'letters') {
-      const n = [...cleanText(p.text)].filter((ch) => !/\s/.test(ch)).length;
-      p.altMap = altLetters(p, n);
+      const words = cleanText(p.text).split(' ').map((w) => w.length);
+      p.altMap = altLetters(p, words.reduce((x, y) => x + y, 0), words);
     }
     return [p, motionAt(p, a, t, font.axes)];
   }

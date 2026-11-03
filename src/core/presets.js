@@ -21,7 +21,7 @@ export const COLOR_PAIRS = [
   { id: 'mint', name: 'Mintgrün 01 auf Mintgrün 02', color: '#C8F2E0', background: '#A6CABA', source: 'Basis (alle drei Muster)' },
   { id: 'sport', name: 'Akzentgrün auf Mintgrün 02', color: '#BDFF00', background: '#A6CABA', source: 'In Anwendung › Sport' },
   { id: 'gesellschaft', name: 'Akzentviolett auf Mintgrün 02', color: '#6100FF', background: '#A6CABA', source: 'In Anwendung › Gesellschaft' },
-  { id: 'dunkel', name: 'Dunkelgrün auf Tiefgrün', color: '#004941', background: '#001F23', source: 'Moodboard (Banner)' },
+  { id: 'dunkel', name: 'Tiefgrün auf Dunkelgrün', color: '#001F23', background: '#004941', source: 'Figma „A4 - 35“ (Schnittmix in DFB Sans Pro)' },
   { id: 'mint-dunkel', name: 'Mintgrün 01 auf Dunkelgrün', color: '#C8F2E0', background: '#004941', source: 'Moodboard' },
 ];
 
@@ -66,17 +66,19 @@ export const ROWS = {
   },
 };
 
-// Schnittmix pro Buchstabe mit Zeilenversatz — Graf_Typopattern_3
-// (FUSSBALLLIEBE): every letter its own width, same order in every row,
-// 111.9 px Black Italic, rows 90 px apart, the last one bleeding off the bottom,
-// rows start at +85 / −42 / −273 / +120 px.
+// Schnittmix pro Buchstabe mit Zeilenversatz — the DFB Sans Pro version of
+// Graf_Typopattern_3: frame "A4 - 35" (node 47:5393, 278.7 × 394.4 px),
+// FUSSBALLLIEBE in Black Italic, 66.6 px, rows ~53 px apart, the last row
+// bleeding off the bottom, rows start at −0.5 / −70.2 / −178.2 / −5.5 px;
+// letter widths as set there (one Super Extended, two Wide per word).
+const G = (px) => px / 278.67;
 export const LETTERS = {
   id: 'letters', name: 'Schnittmix', label: 'Schnittmix pro Buchstabe mit Zeilenversatz', colorPair: 'mint',
   params: {
     text: 'Fußballliebe', pattern: 'letters', orientation: 'horizontal', italic: true,
     letterMin: 40, letterMax: 200, letterWght: 925, wideShare: 0.25, wideRun: 1,
-    size: F(111.9), lineHeight: 90 / 111.9, rows: 4, band: 'end', margin: F(-26.5), gap: 0, shift: 1,
-    ref: { xs: [85, -42, -273, 120].map(F), letters: [60, 100, 200, 100, 100, 40, 100, 200, 60, 100, 200, 80, 40] },
+    size: G(66.63), lineHeight: 52.96 / 66.63, rows: 4, band: 'end', margin: G(-25.8), gap: 0, shift: 1,
+    ref: { xs: [-0.48, -70.16, -178.22, -5.46].map(G), letters: [60, 60, 200, 100, 100, 40, 100, 133, 60, 100, 133, 80, 60] },
   },
 };
 

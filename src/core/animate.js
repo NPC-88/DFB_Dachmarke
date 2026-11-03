@@ -171,6 +171,6 @@ export function motionAt(params, anim, t, axes = { wdth: { min: 40, max: 200 }, 
 }
 
 // Second per-letter mapping for "wechsel" (another variation of the same seed).
-export function altLetters(params, n) {
-  return letterWidths(n, { ...params, seed: (params.seed || 1) * 31 + 7 });
+export function altLetters(params, n, words) {
+  return letterWidths(n, { ...params, seed: (params.seed || 1) * 31 + 7 }, words);
 }

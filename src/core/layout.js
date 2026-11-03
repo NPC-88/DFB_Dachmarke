@@ -74,9 +74,10 @@ export function layoutPattern(font, input, motion = null) {
   else first = vh - p.margin * short - (n - 1) * lh;
 
   // --- styles ----------------------------------------------------------------------
-  const letterCount = [...phrase].filter((ch) => !/\s/.test(ch)).length;
+  const words = phrase.split(' ').map((w) => w.length);
+  const letterCount = words.reduce((a, b) => a + b, 0);
   const letterMap = p.pattern === 'letters'
-    ? (validRef(p.ref && p.ref.letters, letterCount) || letterWidths(letterCount, p))
+    ? (validRef(p.ref && p.ref.letters, letterCount) || letterWidths(letterCount, p, words))
     : null;
   const styleOf = (row, li) => {
     if (p.pattern === 'rows') return p.rowStyles[row % p.rowStyles.length];
@@ -192,48 +193,81 @@ export function rowStarts(n, lengths, vw, p) {
   return out;
 }
 
-// Width per letter for the letters pattern (seeded). Levels are the font's
-// named widths inside [letterMin, letterMax]. "Wide" = Extended / Super
-// Extended (or the widest level when the range stops below). At most
-// round(n × wideShare) wide letters, never more than `wideRun` in a row, at
-// least one in words of 3+ letters. Others vary, no level twice in a row.
-export function letterWidths(n, p) {
+// Width per letter for the letters pattern (seeded). Rules from the approved
+// DFB Sans Pro example (Figma "A4 - 35", FUSSBALLLIEBE, node 47:5393):
+//   levels   Compressed 40, Compact 60, Condensed 80, normal 100, Wide 133,
+//            Super Extended 200 (Extended 166 is not used), inside [letterMin, letterMax]
+//   wide     = Wide or wider; at most round(n × wideShare) of them, at least one
+//            in words of 3+ letters, never more than `wideRun` next to each other
+//   super    = the widest level (Super Extended): at most one per word, the
+//            other wide letters take the next wide level (Wide)
+//   others   weighted like the example: normal and Compact most often,
+//            Condensed and Compressed now and then; never 3× the same in a row
+// `words` = letter counts per word (FUSSBALL LIEBE → [8, 5]).
+export const LETTER_LEVELS = [40, 60, 80, 100, 133, 200];
+
+export function letterWidths(n, p, words = [n]) {
   if (n <= 0) return [];
   const R = stream(p.seed, 'letters');
   const lo = Math.min(p.letterMin, p.letterMax), hi = Math.max(p.letterMin, p.letterMax);
-  let levels = WIDTHS.map((w) => w.wdth).filter((w) => w >= lo && w <= hi);
-  if (!levels.length) levels = [Math.round((lo + hi) / 2)];
-  const wideCut = levels.some((w) => w >= 166) ? 166 : levels[levels.length - 1];
+  let levels = LETTER_LEVELS.filter((w) => w >= lo && w <= hi);
+  if (!levels.length) levels = [WIDTHS.map((w) => w.wdth).reduce((a, b) => (Math.abs(b - (lo + hi) / 2) < Math.abs(a - (lo + hi) / 2) ? b : a))];
+  const wideCut = levels.some((w) => w >= 133) ? 133 : levels[levels.length - 1];
   const wide = levels.filter((w) => w >= wideCut);
   const narrow = levels.filter((w) => w < wideCut);
+  const top = wide[wide.length - 1], second = wide.length > 1 ? wide[wide.length - 2] : top;
   const out = new Array(n).fill(null);
+  const wordOf = [];
+  words.forEach((len, wi) => { for (let k = 0; k < len; k++) wordOf.push(wi); });
+  while (wordOf.length < n) wordOf.push(words.length - 1);
 
   const want = narrow.length ? Math.min(n, Math.max(n >= 3 ? 1 : 0, Math.round(n * p.wideShare))) : n;
   const run = Math.max(1, Math.round(p.wideRun));
   const order = Array.from({ length: n }, (_, i) => i).sort(() => R() - 0.5);
-  let placed = 0;
-  const runAt = (i) => {          // length of the wide run i would join
+  const runAt = (i) => {
     let a = i, b = i;
     while (a - 1 >= 0 && out[a - 1] != null && out[a - 1] >= wideCut) a--;
     while (b + 1 < n && out[b + 1] != null && out[b + 1] >= wideCut) b++;
     return b - a + 1;
   };
+  const hasTop = new Set();
+  let placed = 0;
   for (const i of order) {
     if (placed >= want) break;
-    out[i] = wide[R.int(wide.length)];
+    const w = wordOf[i];
+    out[i] = !hasTop.has(w) || !narrow.length ? top : second;
     if (runAt(i) > run) { out[i] = null; continue; }
+    if (out[i] === top) hasTop.add(w);
     placed++;
   }
-  // the rest: weighted toward the middle widths (Text-like 100 most often)
-  const weight = (w) => (w === 100 ? 3 : w >= 133 ? 1 : 2);
+  const weight = (w) => (w === 100 || w === 60 ? 3 : 1);
   for (let i = 0; i < n; i++) {
     if (out[i] != null) continue;
-    const prev = i > 0 ? out[i - 1] : null;
-    let pool = narrow.filter((w) => w !== prev);
+    const p1 = i > 0 ? out[i - 1] : null, p2 = i > 1 ? out[i - 2] : null;
+    let pool = narrow.filter((w) => !(w === p1 && w === p2));
     if (!pool.length) pool = narrow.length ? narrow : levels;
     const total = pool.reduce((s, w) => s + weight(w), 0);
     let r = R() * total;
     out[i] = pool.find((w) => (r -= weight(w)) < 0) ?? pool[0];
   }
   return out;
+}
+
+// "Neue Variante" for 1 Schnitt and 3 Schnitte: new styles inside the rules
+// of the board — heavy styles only (Bold, Black; the examples use nothing lighter);
+// 3 Schnitte: three clearly different widths, one wide (Wide or wider), one
+// middle (Condensed / normal), one narrow (Compressed / Compact), in any order.
+export function variantStyles(pattern, seed) {
+  const R = stream(seed, 'styles');
+  const heavy = () => (R() < 0.7 ? 925 : 650);
+  if (pattern === 'single') return { style: { wdth: R.pick([40, 60, 80, 100, 133, 166, 200]), wght: heavy() } };
+  if (pattern === 'rows') {
+    const rows = [
+      { wdth: R.pick([133, 166, 200, 200]), wght: heavy() },
+      { wdth: R.pick([80, 100]), wght: heavy() },
+      { wdth: R.pick([40, 60]), wght: heavy() },
+    ].sort(() => R() - 0.5);
+    return { rowStyles: rows };
+  }
+  return {};
 }

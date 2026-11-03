@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { createEngine, PRESETS, letterWidths, LAYOUT_DEFAULTS, ANIM_DEFAULTS, animLength } from '../src/core/index.js';
+import { createEngine, PRESETS, letterWidths, variantStyles, LAYOUT_DEFAULTS, ANIM_DEFAULTS, animLength } from '../src/core/index.js';
 
 const e = createEngine(readFileSync('fonts/DFB-Sans-Pro.ttf'), readFileSync('fonts/DFB-Sans-Pro-Italic.ttf'));
 const P = (id) => PRESETS.find((p) => p.id === id).params;
@@ -29,9 +29,9 @@ test('reference CLUB 100: 4 rows, Super Extended Black, last baseline 26 px abov
   assert.ok(Math.abs(m.fontSize - 70) < 1e-9);
 });
 
-test('reference FUSSBALLLIEBE: letter widths from Figma, same order in every row', () => {
+test('reference FUSSBALLLIEBE (A4 - 35, DFB Sans Pro): letter widths from Figma, same order in every row', () => {
   const m = at('letters');
-  assert.deepEqual(m.letterMap, [60, 100, 200, 100, 100, 40, 100, 200, 60, 100, 200, 80, 40]);
+  assert.deepEqual(m.letterMap, [60, 60, 200, 100, 100, 40, 100, 133, 60, 100, 133, 80, 60]);
   for (const r of m.rows) for (const g of r.glyphs) assert.equal(g.c.wdth, m.letterMap[g.letter % 13]);
 });
 
@@ -57,18 +57,35 @@ test('same seed → same pattern; other seed → other pattern', () => {
   assert.notDeepEqual(a.starts, c.starts);
 });
 
-test('Schnittmix limits: wide share, no wide runs above the limit, range respected', () => {
-  for (let seed = 1; seed < 300; seed++) {
+test('Schnittmix rules: levels, wide share, one Super Extended per word, no wide runs', () => {
+  for (let seed = 1; seed < 400; seed++) {
     const p = { ...LAYOUT_DEFAULTS, seed, letterMin: 40, letterMax: 200, wideShare: 0.25, wideRun: 1 };
-    const w = letterWidths(13, p);
-    const wide = w.map((x) => x >= 166);
-    assert.ok(wide.filter(Boolean).length <= Math.round(13 * 0.25), 'share ' + seed);
-    assert.ok(wide.filter(Boolean).length >= 1, 'at least one ' + seed);
+    const words = [8, 5];                                   // FUSSBALL LIEBE
+    const w = letterWidths(13, p, words);
+    for (const x of w) assert.ok([40, 60, 80, 100, 133, 200].includes(x), 'level ' + x);
+    const wide = w.map((x) => x >= 133);
+    const nWide = wide.filter(Boolean).length;
+    assert.ok(nWide >= 1 && nWide <= Math.round(13 * 0.25), 'share ' + seed);
     for (let i = 1; i < 13; i++) assert.ok(!(wide[i] && wide[i - 1]), 'run ' + seed);
-    for (const x of w) assert.ok(x >= 40 && x <= 200);
-    const narrow = letterWidths(13, { ...p, letterMin: 60, letterMax: 100 });
-    for (const x of narrow) assert.ok(x >= 60 && x <= 100);
+    assert.ok(w.slice(0, 8).filter((x) => x === 200).length <= 1 && w.slice(8).filter((x) => x === 200).length <= 1, 'super per word ' + seed);
+    for (let i = 2; i < 13; i++) assert.ok(!(w[i] === w[i - 1] && w[i] === w[i - 2] && w[i] < 133), 'three same ' + seed);
+    for (const x of letterWidths(13, { ...p, letterMin: 60, letterMax: 100 })) assert.ok(x >= 60 && x <= 100);
   }
+});
+
+test('Neue Variante: new styles within the rules for 1 Schnitt and 3 Schnitte', () => {
+  const singles = new Set(), rowsSets = new Set();
+  for (let seed = 1; seed < 60; seed++) {
+    const { style } = variantStyles('single', seed);
+    assert.ok([650, 925].includes(style.wght));
+    singles.add(style.wdth + ',' + style.wght);
+    const { rowStyles } = variantStyles('rows', seed);
+    const ws = rowStyles.map((r) => r.wdth).sort((a, b) => a - b);
+    assert.ok(ws[0] <= 60 && ws[1] >= 80 && ws[1] <= 100 && ws[2] >= 133, 'three distinct widths ' + ws);
+    rowsSets.add(JSON.stringify(rowStyles));
+  }
+  assert.ok(singles.size > 6 && rowsSets.size > 15);
+  assert.deepEqual(variantStyles('letters', 3), {});
 });
 
 test('tiled rows fill the frame edge to edge; Schnittmix rows reach the far edge', () => {
