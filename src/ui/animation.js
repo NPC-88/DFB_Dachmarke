@@ -31,7 +31,7 @@ export function createAnimationView(root, ctx) {
   const aside = el('aside', { class: 'anim-aside' });
   const pBox = panel('Punkte', true);
   const list = el('ol', { class: 'moments' });
-  const emptyHint = el('p', { class: 'hint' }, 'Noch keine Punkte. Im Werkzeug ein Muster einstellen und „Punkt merken“ klicken, dann etwas ändern (Schnitt, Variante, Größe, Abstand …) und noch einen Punkt merken — die Animation läuft von Punkt zu Punkt. Oder unten einen Effekt wählen.');
+  const emptyHint = el('p', { class: 'hint' }, 'Noch keine Punkte — im Werkzeug „Punkt merken“.');
   pBox.body.append(list, emptyHint);
 
   const bBox = panel('Bewegung', true);
@@ -43,12 +43,11 @@ export function createAnimationView(root, ctx) {
 
   const eBox = panel('Effekt', true);
   const mode = chips('', [['none', 'Keiner'], ['welle', 'Welle'], ['atmen', 'Atmen'], ['wechsel', 'Schnittwechsel']], (v) => ctx.setAnim({ effect: v }), { small: true });
-  const modeHint = el('p', { class: 'hint' });
   const axis = chips('Achse der Schrift', [['wdth', 'Breite'], ['wght', 'Stärke'], ['both', 'Beides']], (v) => ctx.setAnim({ axis: v }), { small: true });
   const amount = slider({ key: 'anim-amount', label: 'Ausschlag', min: 5, max: 100, step: 1, unit: '%' }, (v, tr) => ctx.setAnim({ amount: v / 100 }, { transient: tr }));
   const waves = slider({ key: 'anim-waves', label: 'Wellen über die Fläche', min: 0.5, max: 4, step: 0.1, unit: '×' }, (v, tr) => ctx.setAnim({ waves: v }, { transient: tr }));
   const cycles = chips('Effekt pro Durchlauf', [['1', '1×'], ['2', '2×'], ['3', '3×'], ['4', '4×']], (v) => ctx.setAnim({ cycles: +v }), { small: true });
-  eBox.body.append(mode.node, modeHint, axis.node, amount.node, waves.node, cycles.node);
+  eBox.body.append(mode.node, axis.node, amount.node, waves.node, cycles.node);
 
   const xBox = panel('Export', true);
   const fmt = chips('Format', [['mp4', 'MP4'], ['gif', 'GIF']], (v) => { exportOpts.format = v; syncExport(); }, { small: true });
@@ -225,7 +224,6 @@ export function createAnimationView(root, ctx) {
     length.set(a.length);
     total.textContent = `Gesamtlänge ${fmtS(L())} s, läuft als Schleife.` + (a.moments.length < 2 && a.effect === 'none' ? ' Noch bewegt sich nichts: mindestens zwei Punkte merken oder einen Effekt wählen.' : '');
     mode.set(a.effect);
-    modeHint.textContent = HINTS[a.effect] || '';
     const fx = a.effect !== 'none';
     axis.node.hidden = amount.node.hidden = !fx;
     axis.set(a.axis);

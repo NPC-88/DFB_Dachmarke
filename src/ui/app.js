@@ -177,14 +177,11 @@ export function startApp({ fonts, host, store }) {
     sug.append(b);
   }
   add(tBox.body, { node: sug });
-  add(tBox.body, { node: el('p', { class: 'hint' }, 'Wird immer in Versalien gesetzt (ß → SS).') });
 
   // Muster
   const mBox = panel('Muster', true);
   const pat = chips('', PRESETS.map((p) => [p.id, p.name]), (id) => switchPattern(id));
   add(mBox.body, { node: pat.node, sync: () => pat.set(params.pattern) });
-  const boardLabel = el('p', { class: 'board-label' });
-  add(mBox.body, { node: boardLabel, sync: () => { boardLabel.textContent = 'Figma: „' + presetOf(params.pattern).label + '“'; } });
 
   // Schrift
   const sBox = panel('Schrift', true);
@@ -255,10 +252,9 @@ export function startApp({ fonts, host, store }) {
     },
   });
   const rowHint = el('div', { class: 'seed-row' });
-  const rowHintText = el('p', { class: 'hint' }, 'Zeilen einzeln verschieben: in der Vorschau eine Zeile seitlich ziehen.');
   const rowReset = el('button', { type: 'button', class: 'btn btn-ghost btn-small' }, 'Zeilen zurücksetzen');
   rowReset.addEventListener('click', () => set({ rowShift: null }));
-  rowHint.append(rowHintText, rowReset);
+  rowHint.append(rowReset);
   add(aBox.body, { node: rowHint, when: () => params.pattern === 'single', sync: () => { rowReset.disabled = !(params.rowShift && params.rowShift.some((v) => v)); } });
   const shiftS = slider({ key: 'shift', label: 'Zeilenversatz', min: 0, max: 100, step: 1, unit: '%' }, (v, tr) => set({ shift: v / 100, ref: dropXs() }, { transient: tr }));
   add(aBox.body, { node: shiftS.node, sync: () => shiftS.set(Math.round(params.shift * 100)) });
@@ -277,15 +273,7 @@ export function startApp({ fonts, host, store }) {
   vBtn.addEventListener('click', variant);
   seedRow.append(seedField, vBtn);
   add(vBox.body, { node: seedRow, sync: () => { if (document.activeElement !== seedInput) seedInput.value = params.seed; } });
-  const refNote = el('p', { class: 'hint' });
-  add(vBox.body, {
-    node: refNote,
-    sync: () => {
-      refNote.textContent = params.ref
-        ? 'Zeilenstarts' + (params.ref.letters ? ' und Buchstabenbreiten' : '') + ' wie im Figma-Beispiel. „Neu“ erzeugt eine eigene Anordnung; die Nummer merkt sie sich.'
-        : 'Dieselbe Nummer ergibt immer dieselbe Anordnung — auch als Link oder in der Bibliothek.';
-    },
-  });
+
 
   // Logo
   const lBox = panel('Logo', true);
@@ -295,13 +283,6 @@ export function startApp({ fonts, host, store }) {
   add(lBox.body, { node: lOn.node, sync: () => lOn.set(lg().on) });
   const lMode = chips('Platzierung', LOGO_MODES, (v) => setLogo({ mode: v, on: true, cx: null, cy: null, ox: 0, oy: 0 }), { small: true });
   add(lBox.body, { node: lMode.node, when: () => lg().on, sync: () => lMode.set(lg().mode) });
-  const lHint = el('p', { class: 'hint' });
-  const LHINTS = {
-    free: 'In einer freien Fläche des Layouts, mit Abstand zur Typo (Figma: Gesellschaft).',
-    over: 'Auf der Typografie, die Zeilen laufen darunter weiter (Figma: Podcast-Kachel).',
-    fit: 'In die Typografie eingepasst: die Zeilen öffnen sich um das Logo und laufen danach weiter — vor allem für 1 Schnitt (Figma: Organisation).',
-  };
-  add(lBox.body, { node: lHint, when: () => lg().on, sync: () => { lHint.textContent = LHINTS[lg().mode] + ' In der Vorschau verschieben, an der Ecke größer/kleiner ziehen, mit × entfernen.' + (lg().mode === 'fit' && lg().snap !== false ? ' Mit ‹ › neben dem Logo öffnet eine Zeile an der Wortlücke davor / danach.' : ''); } });
   const lStyle = el('div', { class: 'chip-group' });
   lStyle.append(el('span', { class: 'group-label' }, 'Farbe'));
   const lSw = el('div', { class: 'pair-grid', role: 'radiogroup', 'aria-label': 'Logofarbe' });
@@ -338,8 +319,21 @@ export function startApp({ fonts, host, store }) {
   const logoGrip = el('span', { class: 'logo-grip', 'aria-hidden': 'true' });
   logoEl.append(logoDel, logoGrip);
   stage.append(logoEl);
+  // Selected logo: frame, corner handle, × and the ‹ › gap arrows. Click the logo
+  // to select it; a click anywhere else (or Esc) deselects it.
+  let logoSelected = false;
+  function selectLogo(on) {
+    logoSelected = on;
+    logoEl.classList.toggle('selected', on);
+    gapLayer.hidden = !on;
+  }
+  document.addEventListener('pointerdown', (e) => {
+    if (logoSelected && !logoEl.contains(e.target) && !gapLayer.contains(e.target)) selectLogo(false);
+  }, true);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && logoSelected) { selectLogo(false); logoEl.blur(); } });
+  logoEl.addEventListener('focus', () => selectLogo(true));
   logoDel.addEventListener('pointerdown', (e) => e.stopPropagation());
-  logoDel.addEventListener('click', () => { setLogo({ on: false }); flash('Logo entfernt — im Panel „Logo“ wieder einschalten.'); });
+  logoDel.addEventListener('click', () => { selectLogo(false); setLogo({ on: false }); flash('Logo entfernt — im Panel „Logo“ wieder einschalten.'); });
   let drag = null;
   const framePt = (e) => {
     const r = stage.getBoundingClientRect();
@@ -348,7 +342,8 @@ export function startApp({ fonts, host, store }) {
   logoEl.addEventListener('pointerdown', (e) => {
     if (!model || !model.logo) return;
     e.preventDefault();
-    logoEl.focus();
+    selectLogo(true);
+    logoEl.focus({ preventScroll: true });
     logoEl.setPointerCapture(e.pointerId);
     const b = model.logo, pt = framePt(e);
     drag = { resize: e.target === logoGrip, dx: pt.x - (b.x + b.size / 2), dy: pt.y - (b.y + b.size / 2), cx: b.x + b.size / 2, cy: b.y + b.size / 2 };
@@ -368,7 +363,7 @@ export function startApp({ fonts, host, store }) {
   logoEl.addEventListener('pointercancel', endDrag);
   logoEl.addEventListener('keydown', (e) => {
     if (!model || !model.logo) return;
-    if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); setLogo({ on: false }); return; }
+    if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); selectLogo(false); setLogo({ on: false }); return; }
     const mv = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
     if (!mv) return;
     e.preventDefault();
@@ -386,6 +381,7 @@ export function startApp({ fonts, host, store }) {
 
   // --- In der Typo: ‹ › next to the logo open a row at the previous / next word gap ------
   const gapLayer = el('div', { class: 'gap-layer' });
+  gapLayer.hidden = !logoSelected;
   stage.append(gapLayer);
   function stepGap(r, d) {
     const len = params.orientation === 'vertical' ? params.height : params.width;
@@ -471,7 +467,7 @@ export function startApp({ fonts, host, store }) {
   function syncLogoBox() {
     const b = model && model.logo;
     logoEl.hidden = !b;
-    if (!b) return;
+    if (!b) { if (logoSelected) selectLogo(false); return; }
     Object.assign(logoEl.style, { left: (b.x / params.width) * 100 + '%', top: (b.y / params.height) * 100 + '%', width: (b.size / params.width) * 100 + '%', height: (b.size / params.height) * 100 + '%' });
   }
   $('#variant').addEventListener('click', variant);

@@ -29,11 +29,18 @@ const path = require('path');
   // default In der Typo: rows open at alternating word gaps; › moves one row to the next gap
   const gapsAt = () => p.evaluate(() => { const m = window.dfbPattern.model; return m.rows.filter((r) => r.opened).map((r) => r.glyphs.filter((g) => g.x < m.logo.x).slice(-1)[0].chars + '|' + r.glyphs.find((g) => g.x > m.logo.x).chars); });
   const g0 = await gapsAt();
+  if (await p.locator('.gap-layer').isVisible()) errors.push('gap arrows visible before the logo was selected');
+  await p.locator('.logo-box').click({ position: { x: 20, y: 20 } }); await p.waitForTimeout(150);
   await p.locator('.gap-btn').nth(1).click(); await p.waitForTimeout(250);
   const g1 = await gapsAt();
   console.log('gaps', g0.join(' '), '→', g1.join(' '));
   if (g0.join() === g1.join()) errors.push('gap arrow did not change the row');
   await shot('9-logo-gaps');
+  await p.mouse.click(30, 300);                     // click elsewhere: handles go away
+  await p.waitForTimeout(150);
+  const stillSel = await p.evaluate(() => document.querySelector('.logo-box').classList.contains('selected') || !document.querySelector('.gap-layer').hidden);
+  console.log('deselected after outside click:', !stillSel);
+  if (stillSel) errors.push('logo still selected after clicking elsewhere');
   const box = await p.locator('.logo-box').boundingBox();
   await p.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await p.mouse.down();
   await p.mouse.move(box.x + box.width / 2 + 60, box.y + box.height / 2 - 25, { steps: 6 }); await p.mouse.up();
@@ -51,12 +58,12 @@ const path = require('path');
   await p.mouse.move(strip.x + 110, strip.y + strip.height / 2 + 30, { steps: 8 }); await p.mouse.up();
   await p.waitForTimeout(250);
   console.log('rowShift', JSON.stringify(await p.evaluate(() => window.dfbPattern.params.rowShift)));
-  await p.hover('.logo-box'); await shot('9-logo-fit');
+  await shot('9-logo-fit');
   const state = await p.evaluate(() => window.dfbPattern.params.logo);
   console.log('logo', JSON.stringify(state));
   await p.click('.chip[data-value="over"]'); await p.waitForTimeout(200); await shot('9-logo-over');
   await p.click('.chip[data-value="free"]'); await p.waitForTimeout(200); await shot('9-logo-free');
-  await p.hover('.logo-box'); await p.click('.logo-del'); await p.waitForTimeout(200);
+  await p.locator('.logo-box').click({ position: { x: 20, y: 20 } }); await p.click('.logo-del'); await p.waitForTimeout(200);
   console.log('after delete on =', await p.evaluate(() => window.dfbPattern.params.logo.on), 'box hidden =', await p.isHidden('.logo-box'));
   await p.locator('.switch:has-text("Logo im Layout") .switch-track').click(); await p.click('.chip[data-value="fit"]');
   // export popover + downloads

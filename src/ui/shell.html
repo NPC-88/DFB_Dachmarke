@@ -327,10 +327,13 @@ html, body { height: 100%; overflow: hidden; }
 .row-strip:hover, .row-strip.dragging { background: color-mix(in srgb, var(--highlight) 10%, transparent); box-shadow: inset 0 0 0 1px var(--highlight); }
 .row-strip[data-tip]:hover::after, .row-strip[data-tip]:hover::before { display: none; }
 .logo-box { position: absolute; cursor: grab; touch-action: none; border-radius: 4px; outline: 1px dashed transparent; outline-offset: 3px; }
-.logo-box:hover, .logo-box:focus-visible, .logo-box:active { outline-color: var(--highlight); }
+.logo-box:hover { outline-color: color-mix(in srgb, var(--highlight) 45%, transparent); }
+.logo-box.selected { outline: 1px solid var(--highlight); }
+.logo-box:focus { outline-style: solid; }
 .logo-box:active { cursor: grabbing; }
 .logo-del, .logo-grip { position: absolute; opacity: 0; transition: opacity .12s; }
-.logo-box:hover .logo-del, .logo-box:focus-within .logo-del, .logo-box:hover .logo-grip, .logo-box:focus-within .logo-grip { opacity: 1; }
+.logo-box.selected .logo-del, .logo-box.selected .logo-grip { opacity: 1; }
+.logo-box:not(.selected) .logo-del, .logo-box:not(.selected) .logo-grip { pointer-events: none; }
 .logo-del { top: -14px; right: -14px; width: 24px; height: 24px; border-radius: 50%; border: 0; padding: 0; display: grid; place-items: center; background: var(--fg); color: var(--bg); cursor: pointer; }
 .logo-grip { right: -7px; bottom: -7px; width: 14px; height: 14px; border-radius: 50%; background: var(--bg); box-shadow: 0 0 0 2px var(--highlight); cursor: nwse-resize; }
 .logo-swatch { width: 40px; display: grid; place-items: center; box-shadow: inset 0 0 0 1px var(--line-soft); }
