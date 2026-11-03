@@ -44,7 +44,9 @@ export const LAYOUT_DEFAULTS = {
   seed: 1,
   ref: null,                   // reference values from Figma ({ xs, letters }); dropped on a new variation
   altMap: null,                // animation 'wechsel': second per-letter mapping (set by the engine)
-  logo: null,                  // { on, mode: 'free' | 'over' | 'fit', style, size, cx, cy } (see logo.js)
+  logo: null,                  // { on, mode: 'free' | 'over' | 'fit', style, size, cx, cy, ox, oy, pad, snap } (see logo.js)
+  blockX: 0,                   // whole pattern sideways, share of the row length (frame width; height when vertical)
+  rowShift: null,              // per row slide, share of the row length (1 Schnitt: drag a row in the preview)
 };
 
 export const MAX_ROWS_PER_STYLE = 3;   // "max 3 Zeilen" for the rows pattern
@@ -113,23 +115,33 @@ export function layoutPattern(font, input, motion = null) {
   const units = Array.from({ length: n }, (_, r) => shapeUnit(r, false));
   const starts = rowStarts(n, units.map((u) => u.length), vw, p);
 
+  // Block offset (whole pattern sideways) and per-row slide, share of the row length.
+  const bx = (p.blockX || 0) * vw;
+  const rowShift = (r) => ((p.rowShift && p.rowShift[r]) || 0) * vw;
+
   // --- band of the pattern (frame px) and the logo ---------------------------------------
   const vTop = Math.max(0, first - cap), vBottom = Math.min(vh, first + (n - 1) * lh);
   const bandBox = vertical
     ? { x: vTop, y: 0, w: vBottom - vTop, h: H }
     : { x: 0, y: vTop, w: W, h: vBottom - vTop };
+  // band centre follows the block offset (vertical: virtual x → frame −y)
+  const bandCenter = vertical
+    ? { x: bandBox.x + bandBox.w / 2, y: H / 2 - bx }
+    : { x: W / 2 + bx, y: bandBox.y + bandBox.h / 2 };
   const logo = p.logo && p.logo.on
-    ? logoBox(p.logo, W, H, defaultCenter(p.logo.mode, p.logo.size, { width: W, height: H, rotate: vertical, bandBox }))
+    ? logoBox(p.logo, W, H, defaultCenter(p.logo.mode, p.logo.size, { width: W, height: H, rotate: vertical, bandBox }), bandCenter)
     : null;
-  // "In der Typo": rows that cross the plate open up around it and continue
-  // after it (as CLUB 100 in Organisation). Hole in virtual coordinates.
+  // "In der Typo": rows that cross the plate open up around it (virtual coordinates).
+  // The gap is measured on the ink of the letters (not their advance boxes), the
+  // same on both sides: 22 px at 70 px in Figma "Organisation" (0.31 em).
   let hole = null;
   if (logo && logo.mode === 'fit') {
-    const padX = 0.15 * fontSize;
     const hx = vertical ? H - (logo.y + logo.size) : logo.x;
     const hy = vertical ? logo.x : logo.y;
-    hole = { l: hx - padX, r: hx + logo.size + padX, t: hy, b: hy + logo.size };
+    hole = { l: hx, r: hx + logo.size, t: hy, b: hy + logo.size, pad: (p.logo.pad ?? 0.31) * fontSize, snap: p.logo.snap !== false };
   }
+  const inkL = (g, x) => { const b = font.bounds(g.id, g.c, it); return b ? x + b.xMin * scale : x; };
+  const inkR = (g, x, adv) => { const b = font.bounds(g.id, g.c, it); return b ? x + b.xMax * scale : x + adv; };
 
   // --- place --------------------------------------------------------------------------
   const rows = [];
@@ -137,13 +149,16 @@ export function layoutPattern(font, input, motion = null) {
     const baseline = first + r * lh;
     if (baseline - cap > vh + lh || baseline < -lh) { rows.push({ baseline, glyphs: [] }); continue; }
     const L = units[r].length;
-    let x = starts[r];
-    if (x > 0 && p.pattern !== 'letters') x -= Math.ceil(x / L) * L;    // tiled rows never start inside the frame
-    const glyphs = [];
+    let x = starts[r] + bx + rowShift(r);
+    // tiled rows never start inside the frame (Schnittmix rows may: ragged start)
+    if (p.pattern !== 'letters' && x > 0) x -= Math.ceil(x / L) * L;
     const holeHere = hole && baseline > hole.t && baseline - cap < hole.b ? hole : null;
-    const flow = motion || holeHere;
+    if (holeHere) x -= 2 * L;                       // extra row on the left: the left part may move right
+    // the row as one sequence (spaces kept for the logo split)
+    const seq = [];
     let rep = 0;
-    while (x < vw) {
+    const end = vw + (holeHere ? 2 * L + (holeHere.r - holeHere.l) : 0);
+    while (x < end) {
       let gx = x;
       for (const g of units[r].glyphs) {
         let c = g.c, adv = g.advance;
@@ -151,18 +166,49 @@ export function layoutPattern(font, input, motion = null) {
           c = motion(g.c, { row: r, letter: g.letter, rep, x: gx / vw, rows: n, map: letterMap, alt: p.altMap });
           if (c !== g.c) adv = font.advance(g.id, c, it) * scale + (g.advance - font.advance(g.id, g.c, it) * scale);
         }
-        if (holeHere && gx + adv > holeHere.l && gx < holeHere.r) {
-          if (g.space) { gx = Math.max(gx, holeHere.r); continue; }
-          gx = holeHere.r;
-        }
-        if (!g.space && gx + adv > -fontSize && gx < vw + fontSize) glyphs.push({ id: g.id, chars: g.chars, x: gx, c: font.norm(c), letter: g.letter });
+        seq.push({ id: g.id, chars: g.chars, x: gx, c: font.norm(c), letter: g.letter, space: g.space, adv });
         gx += adv;
       }
-      x = flow ? gx + gapPx : x + L;
+      x = motion ? gx + gapPx : x + L;
       rep++;
       if (rep > 4000) break;
     }
-    rows.push({ baseline, glyphs });
+    if (holeHere) openAround(seq, holeHere);
+    const glyphs = [];
+    for (const g of seq) if (!g.space && g.x + g.adv > -fontSize && g.x < vw + fontSize) glyphs.push({ id: g.id, chars: g.chars, x: g.x, c: g.c, letter: g.letter });
+    rows.push({ baseline, glyphs, opened: !!holeHere });
+  }
+
+  // Split the row at the logo: the part before ends (ink) `pad` before the plate,
+  // the part after starts (ink) `pad` after it. With `snap` the split is the word
+  // space nearest to the plate's centre, so no word is cut (moving the row moves
+  // the logo from one word gap to the next); without, the first letter that
+  // would touch the plate and everything after it move behind the plate.
+  function openAround(seq, h) {
+    const hc = (h.l + h.r) / 2;
+    let s = -1;
+    if (h.snap) {
+      let best = Infinity;
+      seq.forEach((g, i) => { if (g.space) { const d = Math.abs(g.x + g.adv / 2 - hc); if (d < best) { best = d; s = i; } } });
+    }
+    let leftEnd, rightStart;
+    if (s >= 0) {
+      leftEnd = s - 1; rightStart = s + 1;
+      while (leftEnd >= 0 && seq[leftEnd].space) leftEnd--;
+      while (rightStart < seq.length && seq[rightStart].space) rightStart++;
+    } else {
+      rightStart = seq.findIndex((g) => !g.space && inkR(g, g.x, g.adv) > h.l - h.pad && inkL(g, g.x) < h.r + h.pad);
+      if (rightStart < 0) return;
+      leftEnd = rightStart - 1;
+      while (leftEnd >= 0 && seq[leftEnd].space) leftEnd--;
+    }
+    const dL = leftEnd >= 0 && s >= 0 ? (h.l - h.pad) - inkR(seq[leftEnd], seq[leftEnd].x, seq[leftEnd].adv) : 0;
+    const dR = rightStart < seq.length ? (h.r + h.pad) - inkL(seq[rightStart], seq[rightStart].x) : 0;
+    for (let i = 0; i < seq.length; i++) {
+      if (i <= leftEnd) seq[i].x += dL;
+      else if (i >= rightStart) seq[i].x += dR;
+      else seq[i].space = true;                      // the split space itself
+    }
   }
 
   return {
@@ -174,6 +220,7 @@ export function layoutPattern(font, input, motion = null) {
     letterMap,
     starts,
     bandBox,
+    bandCenter,
     logo,
   };
 }

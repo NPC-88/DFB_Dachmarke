@@ -44,6 +44,9 @@ opens at `https://npc-88.github.io/DFB_Dachmarke/`.
   (bottom/right, top/left, centre or the whole frame), number of rows, font size (as a percentage
   of the shorter side), line spacing, distance from the edge (negative values bleed off),
   row offset, and spacing between repeats.
+- **Block and rows:** *Block verschieben* moves the whole pattern sideways (up/down is the distance
+  to the edge). In *1 Schnitt*, each row can be dragged sideways in the preview (locked to the row
+  direction); *Zeilen zurücksetzen* undoes it. *Neue Variante* also resets the rows.
 - **Variante:** *Neue Variante* rearranges the pattern and keeps every setting. The variant number
   (seed) stores the arrangement, so the same number always gives the same pattern, also in a link
   or in the library. Typing a number brings back that variant.
@@ -52,7 +55,13 @@ opens at `https://npc-88.github.io/DFB_Dachmarke/`.
     Gesellschaft, 53:217).
   - *Über der Typo* — on top of the pattern, the rows run on underneath (Podcast tile, 47:5457).
   - *In der Typo* — fitted into the typography: rows that cross the plate open up around it and
-    continue after it, mainly for 1 Schnitt (Organisation, 53:106 — reproduced to the pixel).
+    continue after it, mainly for 1 Schnitt (Organisation, 53:106 — reproduced exactly). The gap
+    is measured on the ink of the letters, the same on both sides (default 0.31 em = 22 px at
+    70 px, as in Figma). *An Wortgrenzen öffnen* (on by default) opens each row at the word space
+    nearest to the logo, so no word is cut; sliding a row moves the logo from one word gap to the
+    next.
+  - Über / In der Typo: the logo position is relative to the pattern block, so it moves with the
+    block.
   - Colours: Mint on Dunkelgrün, Mint on Akzentviolett, Dunkelgrün on Akzentgrün, Akzentgrün on
     Dunkelgrün, or no plate (Dunkelgrün mark).
   - Size: default 1/7 of the shorter side (the template's *Logobreite*, 63 px in 441); slider

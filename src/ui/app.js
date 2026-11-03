@@ -245,6 +245,20 @@ export function startApp({ fonts, host, store }) {
   add(aBox.body, { node: lhS.node, sync: () => lhS.set(params.lineHeight) });
   const marginS = slider({ key: 'margin', label: 'Abstand zum Rand (negativ = angeschnitten)', min: -20, max: 30, step: 0.5, unit: '%' }, (v, tr) => set({ margin: v / 100 }, { transient: tr }));
   add(aBox.body, { node: marginS.node, when: () => params.band === 'end' || params.band === 'start', sync: () => marginS.set(+(params.margin * 100).toFixed(1)) });
+  const blockS = slider({ key: 'blockX', label: 'Block verschieben (links / rechts)', min: -50, max: 50, step: 0.25, unit: '%' }, (v, tr) => set({ blockX: v / 100 }, { transient: tr }));
+  add(aBox.body, {
+    node: blockS.node,
+    sync: () => {
+      blockS.node.querySelector('label').textContent = params.orientation === 'vertical' ? 'Block verschieben (unten / oben)' : 'Block verschieben (links / rechts)';
+      blockS.set(+((params.blockX || 0) * 100).toFixed(2));
+    },
+  });
+  const rowHint = el('div', { class: 'seed-row' });
+  const rowHintText = el('p', { class: 'hint' }, 'Zeilen einzeln verschieben: in der Vorschau eine Zeile seitlich ziehen.');
+  const rowReset = el('button', { type: 'button', class: 'btn btn-ghost btn-small' }, 'Zeilen zurücksetzen');
+  rowReset.addEventListener('click', () => set({ rowShift: null }));
+  rowHint.append(rowHintText, rowReset);
+  add(aBox.body, { node: rowHint, when: () => params.pattern === 'single', sync: () => { rowReset.disabled = !(params.rowShift && params.rowShift.some((v) => v)); } });
   const shiftS = slider({ key: 'shift', label: 'Zeilenversatz', min: 0, max: 100, step: 1, unit: '%' }, (v, tr) => set({ shift: v / 100, ref: dropXs() }, { transient: tr }));
   add(aBox.body, { node: shiftS.node, sync: () => shiftS.set(Math.round(params.shift * 100)) });
   const gapS = slider({ key: 'gap', label: 'Abstand zwischen Wiederholungen', min: 0, max: 3, step: 0.05, unit: 'em' }, (v, tr) => set({ gap: v }, { transient: tr }));
@@ -278,7 +292,7 @@ export function startApp({ fonts, host, store }) {
   const setLogo = (patch, opts) => set({ logo: { ...lg(), ...patch } }, opts);
   const lOn = switchRow('Logo im Layout', (on) => setLogo({ on }));
   add(lBox.body, { node: lOn.node, sync: () => lOn.set(lg().on) });
-  const lMode = chips('Platzierung', LOGO_MODES, (v) => setLogo({ mode: v, on: true, cx: null, cy: null }), { small: true });
+  const lMode = chips('Platzierung', LOGO_MODES, (v) => setLogo({ mode: v, on: true, cx: null, cy: null, ox: 0, oy: 0 }), { small: true });
   add(lBox.body, { node: lMode.node, when: () => lg().on, sync: () => lMode.set(lg().mode) });
   const lHint = el('p', { class: 'hint' });
   const LHINTS = {
@@ -306,9 +320,13 @@ export function startApp({ fonts, host, store }) {
   const lStd = el('button', { type: 'button', class: 'btn btn-ghost btn-small' }, 'Standardgröße (1/7)');
   lStd.addEventListener('click', () => setLogo({ size: LOGO_DEFAULTS.size }));
   const lPos = el('button', { type: 'button', class: 'btn btn-ghost btn-small' }, 'Position zurücksetzen');
-  lPos.addEventListener('click', () => setLogo({ cx: null, cy: null }));
+  lPos.addEventListener('click', () => setLogo({ cx: null, cy: null, ox: 0, oy: 0 }));
   lRow.append(lStd, lPos);
   add(lBox.body, { node: lRow, when: () => lg().on });
+  const lSnap = switchRow('An Wortgrenzen öffnen (kein Wort wird geteilt)', (on) => setLogo({ snap: on }));
+  add(lBox.body, { node: lSnap.node, when: () => lg().on && lg().mode === 'fit', sync: () => lSnap.set(lg().snap !== false) });
+  const lPad = slider({ key: 'logoPad', label: 'Abstand Typo ↔ Logo', min: 0, max: 1, step: 0.01, unit: 'em' }, (v, tr) => setLogo({ pad: v }, { transient: tr }));
+  add(lBox.body, { node: lPad.node, when: () => lg().on && lg().mode === 'fit', sync: () => lPad.set(lg().pad ?? 0.31) });
 
   aside.append(tBox.node, mBox.node, sBox.node, aBox.node, lBox.node, vBox.node);
 
@@ -341,7 +359,7 @@ export function startApp({ fonts, host, store }) {
       const half = Math.max(Math.abs(pt.x - drag.cx), Math.abs(pt.y - drag.cy));
       setLogo({ size: Math.min(0.6, Math.max(0.04, (2 * half) / short)) }, { transient: true });
     } else {
-      setLogo({ cx: Math.min(1, Math.max(0, (pt.x - drag.dx) / W)), cy: Math.min(1, Math.max(0, (pt.y - drag.dy) / H)) }, { transient: true });
+      moveLogoTo(pt.x - drag.dx, pt.y - drag.dy, { transient: true });
     }
   });
   const endDrag = () => { if (drag) { drag = null; update(); } };
@@ -355,8 +373,60 @@ export function startApp({ fonts, host, store }) {
     e.preventDefault();
     const b = model.logo, W = params.width, H = params.height;
     const step = (e.shiftKey ? 0.02 : 0.005) * Math.min(W, H);            // px
-    setLogo({ cx: (b.x + b.size / 2 + mv[0] * step) / W, cy: (b.y + b.size / 2 + mv[1] * step) / H });
+    moveLogoTo(b.x + b.size / 2 + mv[0] * step, b.y + b.size / 2 + mv[1] * step);
   });
+  // free: position on the frame; over / in: offset from the pattern band (moves with the block)
+  function moveLogoTo(x, y, opts) {
+    const W = params.width, H = params.height, short = Math.min(W, H);
+    x = Math.min(W, Math.max(0, x)); y = Math.min(H, Math.max(0, y));
+    if (lg().mode === 'free' || !model.bandCenter) setLogo({ cx: x / W, cy: y / H }, opts);
+    else setLogo({ ox: (x - model.bandCenter.x) / short, oy: (y - model.bandCenter.y) / short }, opts);
+  }
+
+  // --- rows on the preview (1 Schnitt): drag a row sideways ---------------------------
+  const rowLayer = el('div', { class: 'row-layer' });
+  stage.insertBefore(rowLayer, logoEl);
+  let rowDrag = null;
+  function syncRowStrips() {
+    const on = params.pattern === 'single' && model;
+    rowLayer.hidden = !on;
+    if (!on) return;
+    const cap = engine.font.capHeight / engine.font.unitsPerEm * model.fontSize;
+    while (rowLayer.children.length < model.rows.length) {
+      const strip = el('div', { class: 'row-strip', tabindex: '-1', 'data-tip': 'Zeile seitlich verschieben' });
+      strip.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        strip.setPointerCapture(e.pointerId);
+        const r = +strip.dataset.row;
+        rowDrag = { r, start: e, base: (params.rowShift && params.rowShift[r]) || 0 };
+        strip.classList.add('dragging');
+      });
+      strip.addEventListener('pointermove', (e) => {
+        if (!rowDrag) return;
+        const rect = stage.getBoundingClientRect();
+        const vertical = params.orientation === 'vertical';
+        const d = vertical ? -(e.clientY - rowDrag.start.clientY) / rect.height : (e.clientX - rowDrag.start.clientX) / rect.width;
+        const rs = Array.from({ length: model.rows.length }, (_, i) => (params.rowShift && params.rowShift[i]) || 0);
+        rs[rowDrag.r] = rowDrag.base + d;
+        set({ rowShift: rs }, { transient: true });
+      });
+      const end = () => { if (rowDrag) { rowDrag = null; strip.classList.remove('dragging'); update(); } };
+      strip.addEventListener('pointerup', end);
+      strip.addEventListener('pointercancel', end);
+      rowLayer.append(strip);
+    }
+    [...rowLayer.children].forEach((strip, i) => {
+      const row = model.rows[i];
+      strip.hidden = !row || !row.glyphs.length;
+      if (strip.hidden) return;
+      strip.dataset.row = i;
+      const top = row.baseline - cap - model.fontSize * 0.08, h = cap + model.fontSize * 0.16;
+      const st = params.orientation === 'vertical'
+        ? { left: (top / params.width) * 100 + '%', top: '0', width: (h / params.width) * 100 + '%', height: '100%', cursor: 'ns-resize' }
+        : { left: '0', top: (top / params.height) * 100 + '%', width: '100%', height: (h / params.height) * 100 + '%', cursor: 'ew-resize' };
+      Object.assign(strip.style, st);
+    });
+  }
   function syncLogoBox() {
     const b = model && model.logo;
     logoEl.hidden = !b;
@@ -386,7 +456,7 @@ export function startApp({ fonts, host, store }) {
   // New arrangement — and for 1 Schnitt / 3 Schnitte also new styles within the rules.
   function variant() {
     const seed = newSeed();
-    set({ seed, ref: null, ...variantStyles(params.pattern, seed) });
+    set({ seed, ref: null, rowShift: null, ...variantStyles(params.pattern, seed) });
   }
   function dropLetters() { return params.ref && params.ref.letters ? { ...params.ref, letters: undefined } : params.ref; }
   function dropXs() { return params.ref && params.ref.xs ? (params.ref.letters ? { letters: params.ref.letters } : null) : params.ref; }
@@ -557,6 +627,7 @@ export function startApp({ fonts, host, store }) {
     art.innerHTML = engine.svg(model, { color: pair().color, mode: 'outlines', precision: 1 });
     stage.style.background = pair().background;
     syncLogoBox();
+    syncRowStrips();
     layoutStage();
   }
 

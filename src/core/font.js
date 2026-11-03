@@ -135,8 +135,24 @@ export function createFont(fkUpright, fkItalic, { features = ['kern', 'locl'] } 
     return p;
   }
 
+  // Ink box of a glyph (font units, y up) or null for empty glyphs.
+  const boundsCache = new Map();
+  function bounds(gid, c0, it) {
+    const c = norm(c0);
+    const key = gid + '@' + ikey(c, it);
+    let b = boundsCache.get(key);
+    if (b === undefined) {
+      const g = instance(c, it).getGlyph(gid);
+      b = g.path.commands.length ? (({ minX, maxX, minY, maxY }) => ({ xMin: minX, xMax: maxX, yMin: minY, yMax: maxY }))(g.path.bbox) : null;
+      if (boundsCache.size > 60000) boundsCache.clear();
+      boundsCache.set(key, b);
+    }
+    return b;
+  }
+
   return {
     family: 'DFB Sans Pro',
+    bounds,
     unitsPerEm: upm,
     capHeight: fonts[0].capHeight,
     axes: { wdth: { ...pick(axes.wdth) }, wght: { ...pick(axes.wght) } },

@@ -143,29 +143,65 @@ test('animation points: start at point 1, pass point 2, loop back; rows slide, l
   assert.equal(animLength({ ...a, loop: 'pingpong' }), 4);
 });
 
-test('logo: free / over / fit; fit opens the rows around the plate and keeps the text', () => {
-  const logo = { on: true, mode: 'fit', style: 'dunkelgruen', size: 77 / 441, cx: 0.5, cy: 492.5 / 624 };
+const inkGaps = (m) => m.rows.filter((r) => r.opened).map((r) => {
+  const b = m.logo;
+  let L = -Infinity, R = Infinity, cut = false;
+  for (const g of r.glyphs) {
+    const bb = e.font.bounds(g.id, g.c, m.italic);
+    const l = g.x + bb.xMin * m.scale, rr = g.x + bb.xMax * m.scale;
+    if (rr <= b.x) L = Math.max(L, rr); else if (l >= b.x + b.size) R = Math.min(R, l); else cut = true;
+  }
+  return { left: b.x - L, right: R - b.x - b.size, cut };
+});
+
+test('logo In der Typo: two rows open (Organisation), equal ink gap both sides, at word gaps', () => {
   const plain = at('single');
-  const fit = at('single', { logo });
-  const b = fit.logo;
-  assert.ok(Math.abs(b.size - 77) < 1e-6 && Math.abs(b.mark - 61.405) < 0.01);
-  let opened = 0;
-  fit.rows.forEach((r, i) => {
-    const cap = e.font.capHeight / 1000 * fit.fontSize;
-    const crosses = r.baseline > b.y && r.baseline - cap < b.y + b.size;
-    for (const g of r.glyphs) {
-      const adv = e.font.advance(g.id, g.c, false) * fit.scale;
-      if (crosses) assert.ok(g.x + adv <= b.x || g.x >= b.x + b.size, 'glyph clear of the plate');
-    }
-    if (crosses) { opened++; assert.notDeepEqual(r.glyphs.map((g) => g.x), plain.rows[i].glyphs.map((g) => g.x)); }
-    else assert.deepEqual(r.glyphs, plain.rows[i].glyphs);
-  });
-  assert.equal(opened, 2);                                  // as in Organisation: two rows open
-  const over = at('single', { logo: { ...logo, mode: 'over' } });
-  assert.deepEqual(over.rows, plain.rows);                  // on top: the typography stays
-  const free = at('letters', { logo: { on: true, mode: 'free', style: 'violett', size: 54.4 / 441, cx: null, cy: null } });
-  assert.ok(Math.abs(free.logo.y - 27) < 0.5 && Math.abs(free.logo.x + free.logo.size / 2 - 220.5) < 0.5);   // top centre, safe zone
-  const svg = e.svg(fit, { color: '#C8F2E0' });
+  const oy = (492.5 - plain.bandCenter.y) / 441;
+  const fit = at('single', { logo: { on: true, mode: 'fit', style: 'dunkelgruen', size: 77 / 441, ox: 0, oy } });
+  assert.ok(Math.abs(fit.logo.x - 182) < 1e-6 && Math.abs(fit.logo.y - 454) < 1e-6);   // as in Figma
+  const gaps = inkGaps(fit);
+  assert.equal(gaps.length, 2);
+  for (const g of gaps) {
+    assert.ok(!g.cut);
+    assert.ok(Math.abs(g.left - g.right) < 0.01, `symmetric ${g.left} ${g.right}`);
+    assert.ok(Math.abs(g.left - 0.31 * 70) < 0.01);
+  }
+  // snap: the letters right before / after the plate end / start a word
+  const phrase = 'CLUB 100';
+  for (const r of fit.rows.filter((x) => x.opened)) {
+    const before = r.glyphs.filter((g) => g.x < fit.logo.x).pop(), after = r.glyphs.find((g) => g.x > fit.logo.x);
+    assert.ok(['B', '0'].includes(before.chars) && ['C', '1'].includes(after.chars), before.chars + after.chars);
+  }
+  // rows that do not cross the logo stay as they are
+  fit.rows.forEach((r, i) => { if (!r.opened) assert.deepEqual(r.glyphs, plain.rows[i].glyphs); });
+  // without snap: no word gap needed, still nothing touches the plate
+  for (const g of inkGaps(at('single', { logo: { on: true, mode: 'fit', size: 77 / 441, oy, snap: false } }))) assert.ok(!g.cut && g.left >= 0.31 * 70 - 0.01 && Math.abs(g.right - 0.31 * 70) < 0.01);
+});
+
+test('block offset moves rows and the logo (über / in der Typo), not a free logo', () => {
+  const lg = { on: true, mode: 'over', size: 0.15 };
+  const a = at('single', { logo: lg }), b = at('single', { logo: lg, blockX: 0.1 });
+  assert.ok(Math.abs(b.logo.x - a.logo.x - 44.1) < 1e-6);
+  assert.notDeepEqual(a.rows[0].glyphs.map((g) => g.x), b.rows[0].glyphs.map((g) => g.x));
+  const f1 = at('single', { logo: { ...lg, mode: 'free' } }), f2 = at('single', { logo: { ...lg, mode: 'free' }, blockX: 0.1 });
+  assert.equal(f1.logo.x, f2.logo.x);
+  const v = at('single', { orientation: 'vertical', logo: lg, blockX: 0.1 }), v0 = at('single', { orientation: 'vertical', logo: lg });
+  assert.ok(Math.abs(v0.logo.y - v.logo.y - 62.4) < 1e-6);   // vertical: block moves up
+});
+
+test('row slide: only that row moves; tiled rows still cover the frame', () => {
+  const a = at('single'), b = at('single', { rowShift: [0, 0.2, 0, 0] });
+  assert.deepEqual(a.rows[0].glyphs, b.rows[0].glyphs);
+  assert.notDeepEqual(a.rows[1].glyphs.map((g) => g.x), b.rows[1].glyphs.map((g) => g.x));
+  assert.ok(b.rows[1].glyphs[0].x <= 0);
+});
+
+test('logo: over keeps the typography, free sits top centre in the safe zone, svg layer', () => {
+  const logo = { on: true, mode: 'over', style: 'dunkelgruen', size: 77 / 441 };
+  assert.deepEqual(at('single', { logo }).rows.map((r) => r.glyphs), at('single').rows.map((r) => r.glyphs));
+  const free = at('letters', { logo: { on: true, mode: 'free', style: 'violett', size: 54.4 / 441 } });
+  assert.ok(Math.abs(free.logo.y - 27) < 0.5 && Math.abs(free.logo.x + free.logo.size / 2 - 220.5) < 0.5);
+  const svg = e.svg(at('single', { logo: { ...logo, mode: 'fit', oy: (492.5 - 486.85) / 441 } }), { color: '#C8F2E0' });
   assert.match(svg, /<g id="Logo" transform="translate\(182 454\)"><rect id="Traegerflaeche" width="77" height="77" rx="4.87" fill="#004941"\/>/);
   assert.equal(at('single', { logo: { ...logo, on: false } }).logo, null);
 });

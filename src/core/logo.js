@@ -36,7 +36,10 @@ export const LOGO_DEFAULTS = {
   mode: 'free',
   style: 'dunkelgruen',
   size: 63 / 441,        // plate, share of the frame's shorter side ("Logobreite")
-  cx: 0.5, cy: null,     // centre, share of width / height (null = default for the mode)
+  cx: null, cy: null,    // Freie Fläche: centre, share of width / height (null = default)
+  ox: 0, oy: 0,          // Über / In der Typo: offset from the band centre, share of the shorter side
+  pad: 0.31,             // In der Typo: ink gap around the plate, em (22 px at 70 px in Figma)
+  snap: true,            // In der Typo: open the rows at word gaps (no word is cut)
 };
 
 export const SAFE_ZONE = 27 / 441;   // share of the shorter side
@@ -60,10 +63,20 @@ export function defaultCenter(mode, size, model) {
 }
 
 // Logo box in frame pixels (plate square) for params.logo, or null.
-export function logoBox(logo, W, H, center) {
+// Freie Fläche: position on the frame (cx, cy as share of width / height).
+// Über / In der Typo: position relative to the pattern band (ox, oy as share of
+// the shorter side from the band centre), so the logo moves with the block.
+export function logoBox(logo, W, H, center, bandCenter) {
   if (!logo || !logo.on) return null;
-  const s = Math.max(4, logo.size * Math.min(W, H));
-  const cx = (logo.cx ?? center.cx) * W, cy = (logo.cy ?? center.cy) * H;
+  const short = Math.min(W, H);
+  const s = Math.max(4, logo.size * short);
+  let cx, cy;
+  if (logo.mode !== 'free' && bandCenter) {
+    cx = bandCenter.x + (logo.ox || 0) * short;
+    cy = bandCenter.y + (logo.oy || 0) * short;
+  } else {
+    cx = (logo.cx ?? center.cx) * W; cy = (logo.cy ?? center.cy) * H;
+  }
   const st = LOGO_STYLES.find((x) => x.id === logo.style) || LOGO_STYLES[0];
   return { x: cx - s / 2, y: cy - s / 2, size: s, radius: s * PLATE_RADIUS, mark: s * MARK, plateColor: st.plate, markColor: st.mark, mode: logo.mode };
 }

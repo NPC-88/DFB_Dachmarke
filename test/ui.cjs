@@ -34,7 +34,15 @@ const path = require('path');
   const gr = await p.locator('.logo-grip').boundingBox();
   await p.mouse.move(gr.x + gr.width / 2, gr.y + gr.height / 2); await p.mouse.down();
   await p.mouse.move(gr.x + 30, gr.y + 30, { steps: 6 }); await p.mouse.up();
-  await p.waitForTimeout(200); await p.hover('.logo-box'); await shot('9-logo-fit');
+  await p.waitForTimeout(200);
+  // drag the 3rd row sideways (1 Schnitt): it slides, the logo stays
+  await p.evaluate(() => window.scrollTo(0, 0));
+  const strip = await p.locator('.row-strip').nth(2).boundingBox();
+  await p.mouse.move(strip.x + 40, strip.y + strip.height / 2); await p.mouse.down();
+  await p.mouse.move(strip.x + 110, strip.y + strip.height / 2 + 30, { steps: 8 }); await p.mouse.up();
+  await p.waitForTimeout(250);
+  console.log('rowShift', JSON.stringify(await p.evaluate(() => window.dfbPattern.params.rowShift)));
+  await p.hover('.logo-box'); await shot('9-logo-fit');
   const state = await p.evaluate(() => window.dfbPattern.params.logo);
   console.log('logo', JSON.stringify(state));
   await p.click('.chip[data-value="over"]'); await p.waitForTimeout(200); await shot('9-logo-over');
