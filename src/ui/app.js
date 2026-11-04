@@ -4,7 +4,7 @@
 // from `host`; the library backend from `store`.
 
 import {
-  createEngine, PRESETS, COLOR_PAIRS, CATEGORIES, categoryOf, FORMATS, DEFAULT_FORMAT, TEXT_SUGGESTIONS, WIDTHS, WEIGHTS, styleName,
+  createEngine, PRESETS, COLOR_PAIRS, CATEGORIES, categoryOf, AREAS, areaOf, pairsOf, isDark, PATTERN2_CUTS, FORMATS, DEFAULT_FORMAT, TEXT_SUGGESTIONS, WIDTHS, WEIGHTS, styleName,
   ANIM_DEFAULTS, MAX_ROWS_PER_STYLE, newSeed, variantStyles, LOGO_STYLES, LOGO_MODES, LOGO_DEFAULTS, LOGO_PATH, LOGO_VIEWBOX, normalizeAnim, STRUCTURE,
 } from '../core/index.js';
 import { panel, el, chips, slider } from './controls.js';
@@ -107,32 +107,21 @@ export function startApp({ fonts, host, store }) {
     if (id === 'tool') layoutStage();
   }
 
-  // --- colour sets, grouped by brand category ------------------------------------------
-  // Choosing a colour chooses the category (Organisation / Gesellschaft / Sport):
-  // pattern colour and the logo colour that belongs to it change at once.
-  const pairBtns = [];
-  for (const cat of CATEGORIES) {
-    const grp = el('div', { class: 'pair-cat', role: 'group', 'aria-label': cat.name, 'data-cat': cat.id });
-    for (const c of COLOR_PAIRS.filter((x) => x.category === cat.id)) {
-      const b = el('button', { type: 'button', class: 'pair', 'data-tip': c.name, 'aria-label': c.name, 'data-id': c.id });
-      b.style.background = c.background;
-      const ink = el('span', {}, 'Aa');
-      ink.style.color = c.color;
-      b.append(ink);
-      b.addEventListener('click', () => setPair(c.id));
-      grp.append(b);
-      pairBtns.push(b);
-    }
-    $('#colors').append(grp);
-  }
-  const catLabel = el('span', { class: 'cat-label', 'aria-live': 'polite' });
-  $('#colors').append(catLabel);
+  // Colour: chosen in the "Bereich & Farbe" panel (area first, then its allowed colours).
   function setPair(id) {
     pairId = id;
-    const pr = pair(), cat = categoryOf(id);
-    const logo = { ...LOGO_DEFAULTS, ...(params.logo || {}) };
-    // the logo takes the category's colour (unless it already has an allowed one that fits)
-    if (!cat.logos.includes(logo.style) || logo.style !== pr.logo) params = { ...params, logo: { ...logo, style: pr.logo } };
+    const pr = pair();
+    params = { ...params, logo: { ...LOGO_DEFAULTS, ...(params.logo || {}), style: pr.logo } };
+    update();
+  }
+  // Area: sets the allowed colours, the cuts of 1 Schnitt and the italic default.
+  function setArea(id) {
+    const ar = areaOf(id);
+    const first = pairsOf(id)[0];
+    pairId = first.id;
+    const st = params.style || { wdth: 133, wght: 925 };
+    const style = ar.widths.includes(st.wdth) && ar.weights.includes(st.wght) ? st : { wdth: ar.widths[ar.widths.length - 1], wght: 925 };
+    params = { ...params, area: id, italic: ar.italic, style, logo: { ...LOGO_DEFAULTS, ...(params.logo || {}), style: first.logo } };
     update();
   }
 
@@ -178,6 +167,32 @@ export function startApp({ fonts, host, store }) {
   const rows = [];          // { node, when?, sync? }
   const add = (body, item) => { body.append(item.node); rows.push(item); return item; };
 
+  // Bereich & Farbe — first: the area decides colours, cuts and italic
+  const fBox = panel('Bereich & Farbe', true);
+  const areaChips = chips('', AREAS.map((a) => [a.id, a.name]), (v) => setArea(v));
+  add(fBox.body, { node: areaChips.node, sync: () => areaChips.set(params.area || 'organisation') });
+  const swWrap = el('div', { class: 'color-list', role: 'radiogroup', 'aria-label': 'Farbkombination' });
+  const swBtns = COLOR_PAIRS.map((c) => {
+    const b = el('button', { type: 'button', class: 'color-item', 'data-id': c.id, 'aria-label': c.name });
+    const sw = el('span', { class: 'pair' });
+    sw.style.background = c.background;
+    const ink = el('span', {}, 'Aa');
+    ink.style.color = c.color;
+    sw.append(ink);
+    b.append(sw, el('span', { class: 'color-name' }, c.name));
+    b.addEventListener('click', () => setPair(c.id));
+    swWrap.append(b);
+    return b;
+  });
+  add(fBox.body, {
+    node: swWrap,
+    sync: () => swBtns.forEach((b) => {
+      const c = COLOR_PAIRS.find((x) => x.id === b.dataset.id);
+      b.hidden = c.area !== (params.area || 'organisation');
+      b.setAttribute('aria-pressed', String(c.id === pairId));
+    }),
+  });
+
   // Text
   const tBox = panel('Text', true);
   const tWrap = el('label', { class: 'field field-area' });
@@ -203,15 +218,20 @@ export function startApp({ fonts, host, store }) {
   // Schrift
   const sBox = panel('Schrift', true);
   const isP = (...ids) => () => ids.includes(params.pattern);
+  // 1 Schnitt: only the area's cuts
   const widthChips = chips('Breite', WIDTHS.map((w) => [String(w.wdth), WIDTH_LABEL[w.wdth]]), (v) => set({ style: { ...params.style, wdth: +v } }), { small: true });
-  add(sBox.body, { node: widthChips.node, when: isP('single'), sync: () => widthChips.set(params.style.wdth) });
-  const weightChips = chips('Stärke', WEIGHTS.map((g) => [String(g.wght), g.name]), (v) => {
-    if (params.pattern === 'letters') set({ letterWght: +v }); else set({ style: { ...params.style, wght: +v } });
-  }, { small: true });
-  add(sBox.body, { node: weightChips.node, when: isP('single', 'letters'), sync: () => weightChips.set(params.pattern === 'letters' ? params.letterWght : params.style.wght) });
+  add(sBox.body, {
+    node: widthChips.node, when: isP('single'),
+    sync: () => { const ar = areaOf(params.area); widthChips.node.querySelectorAll('.chip').forEach((b) => { b.hidden = !ar.widths.includes(+b.dataset.value); }); widthChips.set(params.style.wdth); },
+  });
+  const weightChips = chips('Stärke', WEIGHTS.map((g) => [String(g.wght), g.name]), (v) => set({ style: { ...params.style, wght: +v } }), { small: true });
+  add(sBox.body, {
+    node: weightChips.node, when: isP('single'),
+    sync: () => { const ar = areaOf(params.area); weightChips.node.querySelectorAll('.chip').forEach((b) => { b.hidden = !ar.weights.includes(+b.dataset.value); }); weightChips.set(params.style.wght); },
+  });
 
-  const allStyles = [];
-  for (const w of WIDTHS) for (const g of WEIGHTS) allStyles.push({ wdth: w.wdth, wght: g.wght });
+  // 3 Schnitte: the three fixed cuts, in any order
+  const allStyles = PATTERN2_CUTS;
   for (let r = 0; r < MAX_ROWS_PER_STYLE; r++) {
     const sel = selectField(`Zeile ${r + 1}`, allStyles.map((c) => [`${c.wdth},${c.wght}`, styleName(c, false)]), (v) => {
       const [wdth, wght] = v.split(',').map(Number);
@@ -222,15 +242,18 @@ export function startApp({ fonts, host, store }) {
     add(sBox.body, { node: sel.node, when: () => params.pattern === 'rows' && r < Math.min(MAX_ROWS_PER_STYLE, params.rows), sync: () => sel.set(`${params.rowStyles[r].wdth},${params.rowStyles[r].wght}`) });
   }
 
-  const wOpts = WIDTHS.map((w) => [String(w.wdth), `${WIDTH_LABEL[w.wdth]} (${w.wdth})`]);
-  const lMin = selectField('Schmalste Breite', wOpts, (v) => set({ letterMin: +v, ref: dropLetters() }));
-  const lMax = selectField('Breiteste Breite', wOpts, (v) => set({ letterMax: +v, ref: dropLetters() }));
-  add(sBox.body, { node: lMin.node, when: isP('letters'), sync: () => lMin.set(String(params.letterMin)) });
-  add(sBox.body, { node: lMax.node, when: isP('letters'), sync: () => lMax.set(String(params.letterMax)) });
+  // Schnittmix: Zufall (seeded mix of the three cuts) or Verlauf (test)
+  const mixChips = chips('Mischung', [['random', 'Zufall'], ['verlauf', 'Verlauf (Test)']], (v) => set({ mix: v }), { small: true });
+  add(sBox.body, { node: mixChips.node, when: isP('letters'), sync: () => mixChips.set(params.mix || 'random') });
+  const isMix = (m) => () => params.pattern === 'letters' && (params.mix || 'random') === m;
+  const gAxis = chips('Verlauf über', [['wdth', 'Breite'], ['wght', 'Stärke'], ['both', 'Beides']], (v) => set({ gradAxis: v }), { small: true });
+  add(sBox.body, { node: gAxis.node, when: isMix('verlauf'), sync: () => gAxis.set(params.gradAxis || 'wdth') });
+  const gWaves = slider({ key: 'gradWaves', label: 'Wellen über die Fläche', min: 0.3, max: 4, step: 0.05, unit: '×' }, (v, tr) => set({ gradWaves: v }, { transient: tr }));
+  add(sBox.body, { node: gWaves.node, when: isMix('verlauf'), sync: () => gWaves.set(params.gradWaves || 1.5) });
   const share = slider({ key: 'wideShare', label: 'Anteil breiter Buchstaben', min: 0, max: 50, step: 1, unit: '%' }, (v, tr) => set({ wideShare: v / 100, ref: dropLetters() }, { transient: tr }));
-  add(sBox.body, { node: share.node, when: isP('letters'), sync: () => share.set(Math.round(params.wideShare * 100)) });
+  add(sBox.body, { node: share.node, when: isMix('random'), sync: () => share.set(Math.round(params.wideShare * 100)) });
   const run = chips('Breite Buchstaben nacheinander, höchstens', [['1', '1'], ['2', '2'], ['3', '3']], (v) => set({ wideRun: +v, ref: dropLetters() }), { small: true });
-  add(sBox.body, { node: run.node, when: isP('letters'), sync: () => run.set(String(params.wideRun)) });
+  add(sBox.body, { node: run.node, when: isMix('random'), sync: () => run.set(String(params.wideRun)) });
 
   const ital = switchRow('Kursiv', (on) => set({ italic: on }));
   add(sBox.body, { node: ital.node, sync: () => ital.set(params.italic) });
@@ -315,7 +338,8 @@ export function startApp({ fonts, host, store }) {
   add(lBox.body, {
     node: lStyle, when: () => lg().on,
     sync: () => {
-      const allowed = categoryOf(pairId).logos;
+      const dark = isDark(pair().background);
+      const allowed = areaOf(params.area).logos.filter((id) => (id === 'ohne' ? !dark : id === 'ohne-hell' || id === 'mint' ? dark : true));
       lBtns.forEach((b) => { b.hidden = !allowed.includes(b.dataset.id); b.setAttribute('aria-pressed', String(b.dataset.id === lg().style)); });
     },
   });
@@ -333,7 +357,7 @@ export function startApp({ fonts, host, store }) {
   const lPad = slider({ key: 'logoPad', label: 'Abstand Typo ↔ Logo', min: 0, max: 1, step: 0.01, unit: 'em' }, (v, tr) => setLogo({ pad: v }, { transient: tr }));
   add(lBox.body, { node: lPad.node, when: () => lg().on && lg().mode === 'fit', sync: () => lPad.set(lg().pad ?? 0.31) });
 
-  aside.append(tBox.node, mBox.node, sBox.node, aBox.node, lBox.node, vBox.node);
+  aside.append(fBox.node, tBox.node, mBox.node, sBox.node, aBox.node, lBox.node, vBox.node);
 
   // --- logo on the preview: drag to move, corner to resize, × to remove --------------------
   const logoEl = el('div', { class: 'logo-box', tabindex: '0', role: 'group', 'aria-label': 'Logo — verschieben mit Maus oder Pfeiltasten, Entf zum Entfernen' });
@@ -516,7 +540,7 @@ export function startApp({ fonts, host, store }) {
   // New arrangement — and for 1 Schnitt / 3 Schnitte also new styles within the rules.
   function variant() {
     const seed = newSeed();
-    set({ seed, ref: null, rowShift: null, ...variantStyles(params.pattern, seed) });
+    set({ seed, ref: null, rowShift: null, ...variantStyles(params.pattern, seed, areaOf(params.area)) });
   }
   function dropLetters() { return params.ref && params.ref.letters ? { ...params.ref, letters: undefined } : params.ref; }
   function dropXs() { return params.ref && params.ref.xs ? (params.ref.letters ? { letters: params.ref.letters } : null) : params.ref; }
@@ -525,7 +549,9 @@ export function startApp({ fonts, host, store }) {
   function switchPattern(id) {
     if (id === params.pattern) return;
     const b = base(id);
-    params = { ...b, text: params.text, width: params.width, height: params.height, logo: params.logo };
+    const ar = areaOf(params.area);
+    const style = ar.widths.includes(b.style && b.style.wdth) ? b.style : { wdth: ar.widths[ar.widths.length - 1], wght: 925 };
+    params = { ...b, area: ar.id, italic: params.italic, style, text: params.text, width: params.width, height: params.height, logo: params.logo };
     update();
   }
 
@@ -538,13 +564,13 @@ export function startApp({ fonts, host, store }) {
 
   // --- reset ---------------------------------------------------------------------------
   $('#reset').addEventListener('click', () => {
+    const area = params.area;
     params = { ...base(params.pattern), width: params.width, height: params.height, logo: params.logo };
-    pairId = presetOf(params.pattern).colorPair;
     anim = clone(ANIM_DEFAULTS);
     zoom = 'fit';
     window.history.replaceState(null, '', location.pathname);
-    update();
-    flash('Zurückgesetzt auf das Figma-Beispiel „' + presetOf(params.pattern).label + '“.');
+    setArea(area);                       // keeps the area; its first colour, cuts and italic
+    flash('Zurückgesetzt: „' + presetOf(params.pattern).label + '“ (' + areaOf(area).name + ').');
   });
 
   // --- export ---------------------------------------------------------------------------
@@ -657,6 +683,8 @@ export function startApp({ fonts, host, store }) {
       params.logo = { ...LOGO_DEFAULTS, ...(s.params.logo || {}) };
     }
     if (s.colorPair && COLOR_PAIRS.some((c) => c.id === s.colorPair)) pairId = s.colorPair;
+    const pa = (COLOR_PAIRS.find((c) => c.id === pairId) || COLOR_PAIRS[0]).area;
+    if (params.area !== pa) params = { ...params, area: pa };
     anim = normalizeAnim(s.anim ? clone(s.anim) : null);
   }
   function snapshot() { return { v: 1, tool: 'dachmarke', params: clone(params), colorPair: pairId, anim: clone(anim) }; }
@@ -668,9 +696,6 @@ export function startApp({ fonts, host, store }) {
       r.node.hidden = r.when ? !r.when() : false;
       if (r.sync && !r.node.hidden) r.sync();
     }
-    pairBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.id === pairId)));
-    document.querySelectorAll('.pair-cat').forEach((g) => g.classList.toggle('active', g.dataset.cat === categoryOf(pairId).id));
-    catLabel.textContent = categoryOf(pairId).name;
     const f = FORMATS.find((x) => x.width === params.width && x.height === params.height);
     $('#formatBtn .dd-value').textContent = f ? `${f.name} · ${f.ratio}` : `${params.width} × ${params.height}`;
     fmtList.querySelectorAll('.menu-item').forEach((b) => b.setAttribute('aria-pressed', String(!!f && b.dataset.id === f.id)));

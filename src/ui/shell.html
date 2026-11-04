@@ -313,6 +313,12 @@ dialog.modal::backdrop { background: #0000004d; }
 .toast-error > .icon { color: var(--error); }
 
 /* --- Dachmarke additions --- */
+.color-list { display: flex; flex-direction: column; gap: 2px; }
+.color-item { display: flex; align-items: center; gap: var(--s3); padding: 6px var(--s2); border: 0; border-radius: var(--r-input); background: transparent; color: var(--fg); font: 400 var(--fs-body)/1.2 var(--font-ui); text-align: left; cursor: pointer; }
+.color-item:hover { background: var(--chip); }
+.color-item[aria-pressed=true] { background: var(--chip); font-weight: 650; }
+.color-item[aria-pressed=true] .pair { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--highlight); }
+.color-item .pair { flex: none; pointer-events: none; }
 .pair-cat { display: flex; gap: 4px; padding: 3px; border-radius: var(--r-pill); }
 .pair-cat.active { background: var(--chip); }
 #colors { gap: var(--s1); }
@@ -445,7 +451,6 @@ main, .viewbar { min-width: 0; }
           </div>
         </div>
       </div>
-      <div class="group" id="colors" role="group" aria-label="Farbe"></div>
       <span class="spacer"></span>
       <div class="group" role="group" aria-label="Änderungen">
         <button type="button" class="btn btn-icon btn-ghost btn-small" id="undo" aria-label="Rückgängig" data-tip="Rückgängig (⌘Z)" data-icon="undo"></button>

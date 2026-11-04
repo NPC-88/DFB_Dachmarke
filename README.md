@@ -70,16 +70,25 @@ opens at `https://npc-88.github.io/DFB_Dachmarke/`.
     fixed in animations.
 - **Format:** Hochformat A (the Figma frame proportions, 1 : √2), 1 : 1, 4 : 5, 9 : 16, 16 : 9, or
   any custom size.
-- **Farbe / Bereich** (colour = brand category): the colour sets are grouped by the board's
-  categories, and choosing one sets the category, the pattern colour and the logo colour at once;
-  the logo panel then offers only that category's logo colours.
+- **Bereich & Farbe** (first panel): choose the area (Organisation / Gesellschaft / Sport), then one
+  of its allowed colour combinations (Figma *Color systematic*, 87:453; the "NOT alowed" ones are
+  left out). The area also sets the cuts of 1 Schnitt, the italic default (Sport italic) and the
+  logo colours on offer.
 
-  | Category | Pattern on Mintgrün 02 | Logo |
+  | Area | Cuts (1 Schnitt) | Background → pattern |
   |---|---|---|
-  | Organisation | Mintgrün 01 | Dunkelgrün plate (mint mark), or no plate |
-  | Gesellschaft | Mintgrün 01 or Akzentviolett | Akzentviolett plate (mint mark), or no plate |
-  | Sport | Akzentgrün or Mintgrün 01 | Dunkelgrün plate, Akzentgrün plate (dunkelgrün mark), or no plate |
-  | Weitere | Tiefgrün on Dunkelgrün, Mintgrün 01 on Dunkelgrün | all |
+  | Organisation | normal + Wide, Bold / Black, upright | Mint 02 → Mint 01 · Tiefgrün → Dunkelgrün · Dunkelgrün → Tiefgrün |
+  | Gesellschaft | Wide + Extended, Bold / Black, upright | Mint 02 → Mint 01 / Violett / Dunkelgrün · Mint 01 → Violett · Tiefgrün → Violett |
+  | Sport | Wide + Extended, Bold / Black, italic | Mint 02 → Akzentgrün / Mint 01 / Dunkelgrün · Tiefgrün → Akzentgrün · Dunkelgrün → Akzentgrün |
+
+  Not allowed (chart): Gesellschaft Dunkelgrün → Violett, Sport Mint 01 → Akzentgrün. Where the
+  chart and the meeting notes differ (violet on dark backgrounds), the chart wins.
+- **Pattern rules (Nov 2026):** 3 Schnitte = normal Black, Wide Black, Super Extended Black in any
+  order, for every area. Schnittmix = Compressed, Condensed, Extended Black; band by default, the
+  whole frame as an option; *Verlauf (Test)*: widths and/or weights as a wave along the rows
+  (compressed → extended → compressed, light → bold → light), not an approved rule yet. No stacked
+  words: neighbouring rows never start at the same point of the phrase (at least ¼ of a repeat
+  apart; 1 Schnitt and Schnittmix), also after "Neue Variante", the row offset slider and dragging.
 - **Export:**
   - **SVG · Konturen** (outlines): looks the same everywhere.
   - **SVG · Live-Text**: editable text, needs the fonts installed (see below).

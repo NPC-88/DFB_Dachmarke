@@ -13,8 +13,8 @@ import { toSVG } from './svg.js';
 import { motionAt, altLetters, normalizeAnim, segmentAt, momentParams, blendParams } from './animate.js';
 
 export { WIDTHS, WEIGHTS, styleName } from './font.js';
-export { LAYOUT_DEFAULTS, MAX_ROWS_PER_STYLE, letterWidths, variantStyles, LETTER_LEVELS, cleanText } from './layout.js';
-export { PALETTE, COLOR_PAIRS, CATEGORIES, categoryOf, FORMATS, PRESETS, TEXT_SUGGESTIONS, DEFAULT_FORMAT } from './presets.js';
+export { LAYOUT_DEFAULTS, MAX_ROWS_PER_STYLE, letterWidths, variantStyles, verlaufAt, cleanText } from './layout.js';
+export { PALETTE, COLOR_PAIRS, CATEGORIES, categoryOf, AREAS, areaOf, pairsOf, isDark, PATTERN2_CUTS, PATTERN3_LEVELS, FORMATS, PRESETS, TEXT_SUGGESTIONS, DEFAULT_FORMAT } from './presets.js';
 export { LOGO_STYLES, LOGO_MODES, LOGO_DEFAULTS, LOGO_PATH, LOGO_VIEWBOX, SAFE_ZONE, defaultCenter } from './logo.js';
 export { ANIM_DEFAULTS, STRUCTURE, motionAt, animLength, normalizeAnim, segmentAt } from './animate.js';
 export { newSeed } from './random.js';

@@ -22,6 +22,7 @@
 import { WIDTHS } from './font.js';
 import { stream } from './random.js';
 import { logoBox, defaultCenter } from './logo.js';
+import { PATTERN3_LEVELS } from './presets.js';
 
 export const LAYOUT_DEFAULTS = {
   text: 'Fußballliebe',
@@ -36,7 +37,11 @@ export const LAYOUT_DEFAULTS = {
   italic: false,
   style: { wdth: 200, wght: 925 },                       // single
   rowStyles: [{ wdth: 200, wght: 925 }, { wdth: 100, wght: 925 }, { wdth: 80, wght: 650 }], // rows
-  letterMin: 40, letterMax: 200, letterWght: 925,        // letters
+  letterWght: 925,             // letters: weight (Black)
+  mix: 'random',               // letters: 'random' (seeded mix) | 'verlauf' (test: wave along the rows)
+  gradAxis: 'wdth',            // verlauf: 'wdth' (Compressed → Extended) | 'wght' (light → bold) | 'both'
+  gradWaves: 1.5,              // verlauf: waves across the frame
+  area: 'organisation',        // Dachmarke area (sets defaults in the UI; see presets.js)
   wideShare: 0.25,             // letters: share of wide letters (Extended / Super Extended)
   wideRun: 1,                  // letters: wide letters in a row at most
   gap: 0,                      // extra space between repeats, em
@@ -143,6 +148,27 @@ export function layoutPattern(font, input, motion = null) {
   const inkL = (g, x) => { const b = font.bounds(g.id, g.c, it); return b ? x + b.xMin * scale : x; };
   const inkR = (g, x, adv) => { const b = font.bounds(g.id, g.c, it); return b ? x + b.xMax * scale : x + adv; };
 
+  // --- no stacked words (team rule): neighbouring rows never start at the same
+  // point of the phrase — at least ¼ of a repeat apart (1 Schnitt, Schnittmix).
+  const eff = Array.from({ length: n }, (_, r) => starts[r] + bx + rowShift(r));
+  if (p.pattern !== 'rows') {
+    for (let r = 1; r < n; r++) {
+      const L = units[r].length, min = 0.25 * L;
+      const m = (((eff[r] - eff[r - 1]) % L) + L) % L;
+      const dist = Math.min(m, L - m);
+      if (dist < min) eff[r] += (m < L / 2 ? 1 : -1) * (min - dist);
+    }
+  }
+  // Schnittmix "Verlauf" (test) — widths / weights follow a wave along the rows
+  const verlauf = p.pattern === 'letters' && p.mix === 'verlauf';
+  const mod = verlauf || motion
+    ? (c, info) => {
+      let out = verlauf && info.letter >= 0 ? verlaufAt(p, info.x, info.row) : c;
+      if (motion) out = motion(out, info);
+      return out;
+    }
+    : null;
+
   // --- place --------------------------------------------------------------------------
   const rows = [];
   let prevGap = null;            // word gap used by the row above (opened rows alternate)
@@ -150,7 +176,7 @@ export function layoutPattern(font, input, motion = null) {
     const baseline = first + r * lh;
     if (baseline - cap > vh + lh || baseline < -lh) { rows.push({ baseline, glyphs: [] }); continue; }
     const L = units[r].length;
-    let x = starts[r] + bx + rowShift(r);
+    let x = eff[r];
     // tiled rows never start inside the frame (Schnittmix rows may: ragged start)
     if (p.pattern !== 'letters' && x > 0) x -= Math.ceil(x / L) * L;
     const holeHere = hole && baseline > hole.t && baseline - cap < hole.b ? hole : null;
@@ -163,14 +189,14 @@ export function layoutPattern(font, input, motion = null) {
       let gx = x;
       for (const g of units[r].glyphs) {
         let c = g.c, adv = g.advance;
-        if (motion) {
-          c = motion(g.c, { row: r, letter: g.letter, rep, x: gx / vw, rows: n, map: letterMap, alt: p.altMap });
+        if (mod) {
+          c = mod(g.c, { row: r, letter: g.letter, rep, x: gx / vw, rows: n, map: letterMap, alt: p.altMap });
           if (c !== g.c) adv = font.advance(g.id, c, it) * scale + (g.advance - font.advance(g.id, g.c, it) * scale);
         }
         seq.push({ id: g.id, chars: g.chars, x: gx, c: font.norm(c), letter: g.letter, space: g.space, adv });
         gx += adv;
       }
-      x = motion ? gx + gapPx : x + L;
+      x = mod ? gx + gapPx : x + L;
       rep++;
       if (rep > 4000) break;
     }
@@ -248,6 +274,7 @@ export function layoutPattern(font, input, motion = null) {
     rows,
     letterMap,
     starts,
+    rowStarts: eff,
     bandBox,
     bandCenter,
     logo,
@@ -297,81 +324,83 @@ export function rowStarts(n, lengths, vw, p) {
   return out;
 }
 
-// Width per letter for the letters pattern (seeded). Rules from the approved
-// DFB Sans Pro example (Figma "A4 - 35", FUSSBALLLIEBE, node 47:5393):
-//   levels   Compressed 40, Compact 60, Condensed 80, normal 100, Wide 133,
-//            Super Extended 200 (Extended 166 is not used), inside [letterMin, letterMax]
-//   wide     = Wide or wider; at most round(n × wideShare) of them, at least one
-//            in words of 3+ letters, never more than `wideRun` next to each other
-//   super    = the widest level (Super Extended): at most one per word, the
-//            other wide letters take the next wide level (Wide)
-//   others   weighted like the example: normal and Compact most often,
-//            Condensed and Compressed now and then; never 3× the same in a row
+// Width per letter for the letters pattern (seeded). Team rules (Nov 2026):
+// three cuts — Compressed 40, Condensed 80, Extended 166. "Wide" letters =
+// Extended: about round(n × wideShare) of them, at least one in words of 3+
+// letters, never more than `wideRun` next to each other; the others Condensed
+// (most often) or Compressed; never the same width three times in a row.
 // `words` = letter counts per word (FUSSBALL LIEBE → [8, 5]).
-export const LETTER_LEVELS = [40, 60, 80, 100, 133, 200];
-
 export function letterWidths(n, p, words = [n]) {
   if (n <= 0) return [];
   const R = stream(p.seed, 'letters');
-  const lo = Math.min(p.letterMin, p.letterMax), hi = Math.max(p.letterMin, p.letterMax);
-  let levels = LETTER_LEVELS.filter((w) => w >= lo && w <= hi);
-  if (!levels.length) levels = [WIDTHS.map((w) => w.wdth).reduce((a, b) => (Math.abs(b - (lo + hi) / 2) < Math.abs(a - (lo + hi) / 2) ? b : a))];
-  const wideCut = levels.some((w) => w >= 133) ? 133 : levels[levels.length - 1];
-  const wide = levels.filter((w) => w >= wideCut);
-  const narrow = levels.filter((w) => w < wideCut);
-  const top = wide[wide.length - 1], second = wide.length > 1 ? wide[wide.length - 2] : top;
+  const levels = (p.letterLevels || PATTERN3_LEVELS).slice().sort((a, b) => a - b);
+  const top = levels[levels.length - 1];
+  const narrow = levels.slice(0, -1);
   const out = new Array(n).fill(null);
-  const wordOf = [];
-  words.forEach((len, wi) => { for (let k = 0; k < len; k++) wordOf.push(wi); });
-  while (wordOf.length < n) wordOf.push(words.length - 1);
-
   const want = narrow.length ? Math.min(n, Math.max(n >= 3 ? 1 : 0, Math.round(n * p.wideShare))) : n;
   const run = Math.max(1, Math.round(p.wideRun));
   const order = Array.from({ length: n }, (_, i) => i).sort(() => R() - 0.5);
   const runAt = (i) => {
     let a = i, b = i;
-    while (a - 1 >= 0 && out[a - 1] != null && out[a - 1] >= wideCut) a--;
-    while (b + 1 < n && out[b + 1] != null && out[b + 1] >= wideCut) b++;
+    while (a - 1 >= 0 && out[a - 1] === top) a--;
+    while (b + 1 < n && out[b + 1] === top) b++;
     return b - a + 1;
   };
-  const hasTop = new Set();
-  let placed = 0;
+  // at least one wide letter in every word of 3+ letters, then the rest
+  let placed = 0, start = 0;
+  for (const len of words) {
+    if (len >= 3 && placed < want) {
+      for (let k = 0; k < 8; k++) {
+        const i = start + R.int(len);
+        out[i] = top;
+        if (runAt(i) <= run) { placed++; break; }
+        out[i] = null;
+      }
+    }
+    start += len;
+  }
   for (const i of order) {
     if (placed >= want) break;
-    const w = wordOf[i];
-    out[i] = !hasTop.has(w) || !narrow.length ? top : second;
+    if (out[i] != null) continue;
+    out[i] = top;
     if (runAt(i) > run) { out[i] = null; continue; }
-    if (out[i] === top) hasTop.add(w);
     placed++;
   }
-  const weight = (w) => (w === 100 || w === 60 ? 3 : 1);
+  const weight = (w) => (w === 80 ? 3 : 2);
   for (let i = 0; i < n; i++) {
     if (out[i] != null) continue;
     const p1 = i > 0 ? out[i - 1] : null, p2 = i > 1 ? out[i - 2] : null;
     let pool = narrow.filter((w) => !(w === p1 && w === p2));
     if (!pool.length) pool = narrow.length ? narrow : levels;
-    const total = pool.reduce((s, w) => s + weight(w), 0);
+    const total = pool.reduce((s2, w) => s2 + weight(w), 0);
     let r = R() * total;
     out[i] = pool.find((w) => (r -= weight(w)) < 0) ?? pool[0];
   }
   return out;
 }
 
-// "Neue Variante" for 1 Schnitt and 3 Schnitte: new styles inside the rules
-// of the board — heavy styles only (Bold, Black; the examples use nothing lighter);
-// 3 Schnitte: three clearly different widths, one wide (Wide or wider), one
-// middle (Condensed / normal), one narrow (Compressed / Compact), in any order.
-export function variantStyles(pattern, seed) {
+// Pattern 3, mix 'verlauf' (test): a wave along the rows, each row a little
+// later — Compressed → Extended → Compressed and/or light → bold → light.
+export function verlaufAt(p, x, row) {
+  const lv = (p.letterLevels || PATTERN3_LEVELS);
+  const lo = Math.min(...lv), hi = Math.max(...lv);
+  const t = 0.5 - 0.5 * Math.cos(2 * Math.PI * (x * (p.gradWaves || 1.5) - row * 0.18));
+  return {
+    wdth: p.gradAxis === 'wght' ? (lo + hi) / 2 : lo + (hi - lo) * t,
+    wght: p.gradAxis === 'wdth' ? p.letterWght : 145 + (925 - 145) * t,
+  };
+}
+
+// "Neue Variante" for 1 Schnitt and 3 Schnitte: new styles within the rules.
+// 1 Schnitt: one of the area's cuts (widths × Bold / Black).
+// 3 Schnitte: the three fixed cuts in a new order.
+export function variantStyles(pattern, seed, area = { widths: [100, 133], weights: [650, 925] }) {
   const R = stream(seed, 'styles');
-  const heavy = () => (R() < 0.7 ? 925 : 650);
-  if (pattern === 'single') return { style: { wdth: R.pick([40, 60, 80, 100, 133, 166, 200]), wght: heavy() } };
+  if (pattern === 'single') return { style: { wdth: R.pick(area.widths), wght: R.pick(area.weights) } };
   if (pattern === 'rows') {
-    const rows = [
-      { wdth: R.pick([133, 166, 200, 200]), wght: heavy() },
-      { wdth: R.pick([80, 100]), wght: heavy() },
-      { wdth: R.pick([40, 60]), wght: heavy() },
-    ].sort(() => R() - 0.5);
-    return { rowStyles: rows };
+    const cuts = [{ wdth: 100, wght: 925 }, { wdth: 133, wght: 925 }, { wdth: 200, wght: 925 }];
+    let order = cuts.slice().sort(() => R() - 0.5);
+    return { rowStyles: order };
   }
   return {};
 }

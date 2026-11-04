@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { createEngine, PRESETS, letterWidths, variantStyles, LAYOUT_DEFAULTS, ANIM_DEFAULTS, animLength } from '../src/core/index.js';
+import { createEngine, PRESETS, letterWidths, variantStyles, LAYOUT_DEFAULTS, ANIM_DEFAULTS, animLength, AREAS, pairsOf } from '../src/core/index.js';
 
 const e = createEngine(readFileSync('fonts/DFB-Sans-Pro.ttf'), readFileSync('fonts/DFB-Sans-Pro-Italic.ttf'));
 const P = (id) => PRESETS.find((p) => p.id === id).params;
@@ -20,19 +20,20 @@ test('text: capitals, ß → SS', () => {
   assert.equal(at('single', { text: '  club   100 ' }).phrase, 'CLUB 100');
 });
 
-test('reference CLUB 100: 4 rows, Super Extended Black, last baseline 26 px above the edge', () => {
+test('reference CLUB 100 layout: 4 rows, Organisation cut (Wide Black), last baseline 26 px above the edge', () => {
   const m = at('single');
   assert.equal(m.rows.length, 4);
   assert.ok(Math.abs(m.rows[3].baseline - (624 - 26)) < 0.01);
   assert.ok(Math.abs(m.rows[1].baseline - m.rows[0].baseline - 58) < 0.01);
-  for (const r of m.rows) for (const g of r.glyphs) assert.deepEqual(g.c, { wdth: 200, wght: 925 });
+  for (const r of m.rows) for (const g of r.glyphs) assert.deepEqual(g.c, { wdth: 133, wght: 925 });
   assert.ok(Math.abs(m.fontSize - 70) < 1e-9);
 });
 
-test('reference FUSSBALLLIEBE (A4 - 35, DFB Sans Pro): letter widths from Figma, same order in every row', () => {
+test('Schnittmix: three cuts (Compressed / Condensed / Extended), same order in every row', () => {
   const m = at('letters');
-  assert.deepEqual(m.letterMap, [60, 60, 200, 100, 100, 40, 100, 133, 60, 100, 133, 80, 60]);
-  for (const r of m.rows) for (const g of r.glyphs) assert.equal(g.c.wdth, m.letterMap[g.letter % 13]);
+  assert.equal(m.letterMap.length, 13);
+  for (const w of m.letterMap) assert.ok([40, 80, 166].includes(w));
+  for (const r of m.rows) for (const g of r.glyphs) { assert.equal(g.c.wdth, m.letterMap[g.letter % 13]); assert.equal(g.c.wght, 925); }
 });
 
 test('rows never overlap: line height ≥ cap height', () => {
@@ -57,34 +58,68 @@ test('same seed → same pattern; other seed → other pattern', () => {
   assert.notDeepEqual(a.starts, c.starts);
 });
 
-test('Schnittmix rules: levels, wide share, one Super Extended per word, no wide runs', () => {
+test('Schnittmix rules: three cuts, wide share, a wide letter per word, no wide runs, no 3× same', () => {
   for (let seed = 1; seed < 400; seed++) {
-    const p = { ...LAYOUT_DEFAULTS, seed, letterMin: 40, letterMax: 200, wideShare: 0.25, wideRun: 1 };
-    const words = [8, 5];                                   // FUSSBALL LIEBE
-    const w = letterWidths(13, p, words);
-    for (const x of w) assert.ok([40, 60, 80, 100, 133, 200].includes(x), 'level ' + x);
-    const wide = w.map((x) => x >= 133);
+    const p = { ...LAYOUT_DEFAULTS, seed, wideShare: 0.25, wideRun: 1 };
+    const w = letterWidths(13, p, [8, 5]);                  // FUSSBALL LIEBE
+    for (const x of w) assert.ok([40, 80, 166].includes(x), 'level ' + x);
+    const wide = w.map((x) => x === 166);
     const nWide = wide.filter(Boolean).length;
-    assert.ok(nWide >= 1 && nWide <= Math.round(13 * 0.25), 'share ' + seed);
+    assert.ok(nWide >= 2 && nWide <= Math.max(2, Math.round(13 * 0.25)), 'share ' + seed + ' ' + nWide);
+    assert.ok(w.slice(0, 8).includes(166) && w.slice(8).includes(166), 'one per word ' + seed);
     for (let i = 1; i < 13; i++) assert.ok(!(wide[i] && wide[i - 1]), 'run ' + seed);
-    assert.ok(w.slice(0, 8).filter((x) => x === 200).length <= 1 && w.slice(8).filter((x) => x === 200).length <= 1, 'super per word ' + seed);
-    for (let i = 2; i < 13; i++) assert.ok(!(w[i] === w[i - 1] && w[i] === w[i - 2] && w[i] < 133), 'three same ' + seed);
-    for (const x of letterWidths(13, { ...p, letterMin: 60, letterMax: 100 })) assert.ok(x >= 60 && x <= 100);
+    for (let i = 2; i < 13; i++) assert.ok(!(w[i] === w[i - 1] && w[i] === w[i - 2]), 'three same ' + seed);
   }
 });
 
-test('Neue Variante: new styles within the rules for 1 Schnitt and 3 Schnitte', () => {
-  const singles = new Set(), rowsSets = new Set();
-  for (let seed = 1; seed < 60; seed++) {
-    const { style } = variantStyles('single', seed);
-    assert.ok([650, 925].includes(style.wght));
-    singles.add(style.wdth + ',' + style.wght);
-    const { rowStyles } = variantStyles('rows', seed);
-    const ws = rowStyles.map((r) => r.wdth).sort((a, b) => a - b);
-    assert.ok(ws[0] <= 60 && ws[1] >= 80 && ws[1] <= 100 && ws[2] >= 133, 'three distinct widths ' + ws);
-    rowsSets.add(JSON.stringify(rowStyles));
+test('Verlauf (test): widths follow a wave along each row', () => {
+  const m = at('letters', { mix: 'verlauf', gradAxis: 'wdth' });
+  const ws = m.rows[1].glyphs.map((g) => g.c.wdth);
+  assert.ok(Math.min(...ws) < 60 && Math.max(...ws) > 140);
+  const g2 = at('letters', { mix: 'verlauf', gradAxis: 'wght' }).rows[1].glyphs.map((g) => g.c.wght);
+  assert.ok(Math.min(...g2) < 300 && Math.max(...g2) > 800);
+});
+
+test('no stacked words: neighbouring rows start at least ¼ repeat apart (1 Schnitt, Schnittmix)', () => {
+  const check = (m, L) => {
+    for (let r = 1; r < m.rowStarts.length; r++) {
+      const d = (((m.rowStarts[r] - m.rowStarts[r - 1]) % L) + L) % L;
+      assert.ok(Math.min(d, L - d) >= 0.25 * L - 1e-6, `rows ${r - 1}/${r}`);
+    }
+  };
+  const unitLen = (m) => { const g = m.rows[0].glyphs; return null; };
+  for (const id of ['single', 'letters']) for (let seed = 1; seed < 40; seed++) for (const shift of [0, 0.3, 1]) {
+    const p = { ...P(id), width: 441, height: 624, ref: null, seed, shift };
+    const m = e.layout(p);
+    // repeat length = phrase + space (+ gap)
+    const L = e.font.run(m.phrase + ' ', id === 'single' ? p.style : { wdth: 100, wght: 925 }, p.italic).reduce((s, g) => s + g.advance, 0) * m.scale;
+    if (id === 'single') check(m, L);
+    else assert.ok(m.rowStarts.every((x, r) => r === 0 || Math.abs(x - m.rowStarts[r - 1]) > 1), 'letters rows differ');
   }
-  assert.ok(singles.size > 6 && rowsSets.size > 15);
+  // the Figma counter-example (87:1477): rows 1/2 and 3/4 start together → separated
+  const bad = e.layout({ ...P('single'), width: 441, height: 624, ref: { xs: [-301, -301, -488, -488].map((x) => x / 441) } });
+  assert.notEqual(bad.rowStarts[0], bad.rowStarts[1]);
+  assert.notEqual(bad.rowStarts[2], bad.rowStarts[3]);
+});
+
+test('areas: allowed colours from the chart, not-allowed ones left out', () => {
+  const ids = (a) => pairsOf(a).map((p) => p.background + '>' + p.color);
+  assert.ok(!ids('gesellschaft').includes('#004941>#6100FF'));          // Dunkelgrün → Violett not allowed
+  assert.ok(!ids('sport').includes('#C8F2E0>#BBFD00'));                 // Mint 01 → Akzentgrün not allowed
+  assert.ok(ids('gesellschaft').includes('#001F23>#6100FF'));
+  assert.equal(AREAS.find((a) => a.id === 'sport').italic, true);
+  assert.deepEqual(AREAS.find((a) => a.id === 'organisation').widths, [100, 133]);
+});
+
+test('Neue Variante: 1 Schnitt picks the area cuts; 3 Schnitte reorders the three fixed cuts', () => {
+  const org = AREAS[0], ges = AREAS[1];
+  for (let seed = 1; seed < 60; seed++) {
+    const a = variantStyles('single', seed, org).style, b = variantStyles('single', seed, ges).style;
+    assert.ok(org.widths.includes(a.wdth) && org.weights.includes(a.wght));
+    assert.ok(ges.widths.includes(b.wdth) && ges.weights.includes(b.wght));
+    const ws = variantStyles('rows', seed, org).rowStyles.map((r) => r.wdth + '/' + r.wght).sort();
+    assert.deepEqual(ws, ['100/925', '133/925', '200/925']);
+  }
   assert.deepEqual(variantStyles('letters', 3), {});
 });
 
@@ -107,8 +142,8 @@ test('svg: outlines and live text', () => {
   const o = e.svg(m, { color: '#C8F2E0', mode: 'outlines' });
   assert.match(o, /<path id="Zeile_01" d="M/);
   const t = e.svg(m, { color: '#C8F2E0', mode: 'text' });
-  assert.match(t, /font-family="'DFB Sans Pro Static SupEx Black', 'DFB Sans Pro Static', 'DFB Sans Pro'"/);
-  assert.match(t, /font-style="italic"/);
+  assert.match(t, /font-family="'DFB Sans Pro Static Extd Black', 'DFB Sans Pro Static', 'DFB Sans Pro'"/);
+  assert.match(e.svg(at('letters', { italic: true }), { mode: 'text' }), /font-style="italic"/);
   const v = e.svg(at('rows', { orientation: 'vertical' }), { mode: 'outlines', background: '#A6CABA' });
   assert.match(v, /matrix\(0 -1 1 0 0 624\)/);
   assert.match(v, /<rect id="Hintergrund"/);

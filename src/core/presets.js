@@ -16,31 +16,49 @@ export const PALETTE = [
   { id: 'weiss', name: 'Weiß', hex: '#FFFFFF' },
 ];
 
-// Brand categories ("Dachmarkenbereiche"): the colour set decides the category.
-// From the board's "In Anwendung" layouts (Organisation / Gesellschaft / Sport):
-// background always Mintgrün 02; pattern and logo colours depend on the category.
-//   Organisation — pattern Mintgrün 01; logo plate Dunkelgrün (mint mark) or no plate
-//   Gesellschaft — pattern Mintgrün 01 or Akzentviolett; logo plate Akzentviolett or no plate
-//   Sport        — pattern Akzentgrün or Mintgrün 01; logo plate Dunkelgrün or Akzentgrün, or no plate
-// "Weitere": dark combinations seen outside these rows (A4 - 35, moodboard).
-export const CATEGORIES = [
-  { id: 'organisation', name: 'Organisation', logos: ['dunkelgruen', 'ohne'] },
-  { id: 'gesellschaft', name: 'Gesellschaft', logos: ['violett', 'ohne'] },
-  { id: 'sport', name: 'Sport', logos: ['dunkelgruen', 'akzentgruen', 'ohne'] },
-  { id: 'weitere', name: 'Weitere', logos: ['dunkelgruen', 'violett', 'akzentgruen', 'highlight', 'ohne'] },
+// Dachmarke areas ("Bereiche"): Organisation, Gesellschaft, Sport. The area sets
+// the type rules and the allowed colour combinations (rules of the team, Nov 2026,
+// reduced for the tool; colours from Figma "Color systematic", node 87:453 —
+// combinations marked "NOT alowed" there are left out):
+//   Organisation — cuts normal width + Wide, Bold / Black, upright
+//   Gesellschaft — cuts Wide + Extended, Bold / Black, upright
+//   Sport        — like Gesellschaft, italic
+// Italic in the patterns is still under discussion: the area sets the default,
+// the switch stays for testing.
+export const AREAS = [
+  { id: 'organisation', name: 'Organisation', italic: false, widths: [100, 133], weights: [650, 925], logos: ['dunkelgruen', 'mint', 'ohne', 'ohne-hell'] },
+  { id: 'gesellschaft', name: 'Gesellschaft', italic: false, widths: [133, 166], weights: [650, 925], logos: ['violett', 'ohne', 'ohne-hell'] },
+  { id: 'sport', name: 'Sport', italic: true, widths: [133, 166], weights: [650, 925], logos: ['dunkelgruen', 'akzentgruen', 'ohne', 'ohne-hell'] },
 ];
+export const CATEGORIES = AREAS;
 
-// Pattern colour on background. `logo` = the logo colour that comes with it.
+// Background + pattern colour per area. `logo` = the logo colour that comes with it.
+//   Organisation: Mint 02 → Mint 01 · Tiefgrün → Dunkelgrün · Dunkelgrün → Tiefgrün
+//   Gesellschaft: Mint 02 → Mint 01 / Violett / Dunkelgrün · Mint 01 → Violett · Tiefgrün → Violett
+//                 (not allowed: Dunkelgrün → Violett)
+//   Sport:        Mint 02 → Akzentgrün / Mint 01 / Dunkelgrün · Tiefgrün → Akzentgrün · Dunkelgrün → Akzentgrün
+//                 (not allowed: Mint 01 → Akzentgrün)
+const C = { mint1: '#C8F2E0', mint2: '#A6CABA', dunkel: '#004941', tief: '#001F23', violett: '#6100FF', akzent: '#BBFD00' };
 export const COLOR_PAIRS = [
-  { id: 'mint', category: 'organisation', name: 'Organisation · Mintgrün 01 auf Mintgrün 02', color: '#C8F2E0', background: '#A6CABA', logo: 'dunkelgruen', source: 'In Anwendung › Organisation' },
-  { id: 'gesellschaft-mint', category: 'gesellschaft', name: 'Gesellschaft · Mintgrün 01 auf Mintgrün 02', color: '#C8F2E0', background: '#A6CABA', logo: 'violett', source: 'In Anwendung › Gesellschaft' },
-  { id: 'gesellschaft', category: 'gesellschaft', name: 'Gesellschaft · Akzentviolett auf Mintgrün 02', color: '#6100FF', background: '#A6CABA', logo: 'violett', source: 'In Anwendung › Gesellschaft' },
-  { id: 'sport', category: 'sport', name: 'Sport · Akzentgrün auf Mintgrün 02', color: '#BBFD00', background: '#A6CABA', logo: 'dunkelgruen', source: 'In Anwendung › Sport' },
-  { id: 'sport-mint', category: 'sport', name: 'Sport · Mintgrün 01 auf Mintgrün 02', color: '#C8F2E0', background: '#A6CABA', logo: 'akzentgruen', source: 'In Anwendung › Sport' },
-  { id: 'dunkel', category: 'weitere', name: 'Tiefgrün auf Dunkelgrün', color: '#001F23', background: '#004941', logo: 'highlight', source: 'Figma „A4 - 35“ (Schnittmix in DFB Sans Pro)' },
-  { id: 'mint-dunkel', category: 'weitere', name: 'Mintgrün 01 auf Dunkelgrün', color: '#C8F2E0', background: '#004941', logo: 'akzentgruen', source: 'Moodboard' },
+  { id: 'mint', area: 'organisation', name: 'Mintgrün 01 auf Mintgrün 02', color: C.mint1, background: C.mint2, logo: 'dunkelgruen' },
+  { id: 'org-tief', area: 'organisation', name: 'Dunkelgrün auf Tiefgrün', color: C.dunkel, background: C.tief, logo: 'mint' },
+  { id: 'dunkel', area: 'organisation', name: 'Tiefgrün auf Dunkelgrün', color: C.tief, background: C.dunkel, logo: 'mint' },
+  { id: 'gesellschaft-mint', area: 'gesellschaft', name: 'Mintgrün 01 auf Mintgrün 02', color: C.mint1, background: C.mint2, logo: 'violett' },
+  { id: 'gesellschaft', area: 'gesellschaft', name: 'Akzentviolett auf Mintgrün 02', color: C.violett, background: C.mint2, logo: 'violett' },
+  { id: 'ges-dunkel', area: 'gesellschaft', name: 'Dunkelgrün auf Mintgrün 02', color: C.dunkel, background: C.mint2, logo: 'violett' },
+  { id: 'ges-hell', area: 'gesellschaft', name: 'Akzentviolett auf Mintgrün 01', color: C.violett, background: C.mint1, logo: 'violett' },
+  { id: 'ges-tief', area: 'gesellschaft', name: 'Akzentviolett auf Tiefgrün', color: C.violett, background: C.tief, logo: 'violett' },
+  { id: 'sport', area: 'sport', name: 'Akzentgrün auf Mintgrün 02', color: C.akzent, background: C.mint2, logo: 'dunkelgruen' },
+  { id: 'sport-mint', area: 'sport', name: 'Mintgrün 01 auf Mintgrün 02', color: C.mint1, background: C.mint2, logo: 'akzentgruen' },
+  { id: 'sport-dunkel', area: 'sport', name: 'Dunkelgrün auf Mintgrün 02', color: C.dunkel, background: C.mint2, logo: 'akzentgruen' },
+  { id: 'sport-tief', area: 'sport', name: 'Akzentgrün auf Tiefgrün', color: C.akzent, background: C.tief, logo: 'akzentgruen' },
+  { id: 'sport-dunkelbg', area: 'sport', name: 'Akzentgrün auf Dunkelgrün', color: C.akzent, background: C.dunkel, logo: 'akzentgruen' },
 ];
-export const categoryOf = (pairId) => CATEGORIES.find((c) => c.id === (COLOR_PAIRS.find((p) => p.id === pairId) || COLOR_PAIRS[0]).category) || CATEGORIES[0];
+export const areaOf = (id) => AREAS.find((a) => a.id === id) || AREAS[0];
+export const pairsOf = (areaId) => COLOR_PAIRS.filter((p) => p.area === areaId);
+export const categoryOf = (pairId) => areaOf((COLOR_PAIRS.find((p) => p.id === pairId) || COLOR_PAIRS[0]).area);
+// dark background → light logo variants
+export const isDark = (hex) => { const n = parseInt(hex.slice(1), 16); return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) < 110; };
 
 export const FORMATS = [
   { id: 'a', name: 'Hochformat A (Figma)', ratio: '1 : √2', width: 1240, height: 1754 },
@@ -54,48 +72,52 @@ export const TEXT_SUGGESTIONS = ['Fußballliebe', 'Fußball', 'Deutscher Fußbal
 
 const F = (px) => px / 441;      // Figma frame is 441 px wide (shorter side)
 
-// 1 Schriftschnitt mit Zeilenversatz — Graf_Typopattern_1 (CLUB 100):
-// Super Extended Black, 70 px, rows 58 px apart, 4 rows at the bottom,
-// last baseline 26 px above the edge, rows start at −41 / −301 / −488 / −747 px.
+// Pattern 2: one family, three cuts — "Bold, Wide or Very Extended Wide" — the
+// same for every area; only their order changes (team rules, Nov 2026).
+export const PATTERN2_CUTS = [{ wdth: 100, wght: 925 }, { wdth: 133, wght: 925 }, { wdth: 200, wght: 925 }];
+// Pattern 3: three cuts — Extended, Condensed, Compressed (team rules, Nov 2026).
+export const PATTERN3_LEVELS = [40, 80, 166];
+
+// 1 Schriftschnitt mit Zeilenversatz — layout as Graf_Typopattern_1 (CLUB 100):
+// 70 px, rows 58 px apart, 4 rows at the bottom, last baseline 26 px above the
+// edge, rows start at −41 / −301 / −488 / −747 px. The cut follows the area
+// (Organisation: Wide Black; the board's Super Extended predates the rules).
 export const SINGLE = {
   id: 'single', name: '1 Schnitt', label: '1 Schriftschnitt mit Zeilenversatz', colorPair: 'mint',
   params: {
-    text: 'Club 100', pattern: 'single', orientation: 'horizontal', italic: false,
-    style: { wdth: 200, wght: 925 },
+    area: 'organisation', text: 'Club 100', pattern: 'single', orientation: 'horizontal', italic: false,
+    style: { wdth: 133, wght: 925 },
     size: F(70), lineHeight: 58 / 70, rows: 4, band: 'end', margin: F(26), gap: 0, shift: 1,
     ref: { xs: [-41, -301, -488, -747].map(F) },
   },
 };
 
-// 3 Schriftschnitte, 1 Schnitt pro Zeile (max 3 Zeilen) — Graf_Typopattern_2
-// (DEUTSCHER FUSSBALL BUND). The three styles are the board's (Druk Wide → Text
-// → Bold, matched by phrase length 636 / 308 / 201 px: Super Extended Black →
-// Condensed Black → Compressed Bold, italic). The board shows it turned −90°;
-// team decision: like every pattern it is horizontal by default and can be
-// turned. Horizontal size, spacing and margin follow CLUB 100.
+// 3 Schriftschnitte, 1 Schnitt pro Zeile (max 3 Zeilen): normal Black → Wide
+// Black → Super Extended Black; horizontal or turned −90°. Size and spacing as CLUB 100.
 export const ROWS = {
   id: 'rows', name: '3 Schnitte', label: '3 Schriftschnitte, 1 Schnitt pro Zeile', colorPair: 'mint',
   params: {
-    text: 'Deutscher Fußball Bund', pattern: 'rows', orientation: 'horizontal', italic: true,
-    rowStyles: [{ wdth: 200, wght: 925 }, { wdth: 80, wght: 925 }, { wdth: 40, wght: 650 }],
+    area: 'organisation', text: 'Deutscher Fußball Bund', pattern: 'rows', orientation: 'horizontal', italic: false,
+    rowStyles: PATTERN2_CUTS.map((c) => ({ ...c })),
     size: F(70), lineHeight: 58 / 70, rows: 3, band: 'end', margin: F(26), gap: 0.4, shift: 1,
     seed: 7,
   },
 };
 
-// Schnittmix pro Buchstabe mit Zeilenversatz — the DFB Sans Pro version of
-// Graf_Typopattern_3: frame "A4 - 35" (node 47:5393, 278.7 × 394.4 px),
-// FUSSBALLLIEBE in Black Italic, 66.6 px, rows ~53 px apart, the last row
-// bleeding off the bottom, rows start at −0.5 / −70.2 / −178.2 / −5.5 px;
-// letter widths as set there (one Super Extended, two Wide per word).
+// Schnittmix pro Buchstabe mit Zeilenversatz: Compressed / Condensed / Extended
+// Black, per letter, same order in every row. Size, spacing and row starts as the
+// DFB Sans Pro frame "A4 - 35" (node 47:5393, 278.7 × 394.4 px): 66.6 px, rows
+// ~53 px apart, the last row bleeding off the bottom; band by default, the whole
+// frame as an option. mix 'verlauf' (test): widths / weights as a wave along the rows.
 const G = (px) => px / 278.67;
 export const LETTERS = {
   id: 'letters', name: 'Schnittmix', label: 'Schnittmix pro Buchstabe mit Zeilenversatz', colorPair: 'mint',
   params: {
-    text: 'Fußballliebe', pattern: 'letters', orientation: 'horizontal', italic: true,
-    letterMin: 40, letterMax: 200, letterWght: 925, wideShare: 0.25, wideRun: 1,
+    area: 'organisation', text: 'Fußballliebe', pattern: 'letters', orientation: 'horizontal', italic: false,
+    letterWght: 925, wideShare: 0.25, wideRun: 1, mix: 'random', gradAxis: 'wdth', gradWaves: 1.5,
     size: G(66.63), lineHeight: 52.96 / 66.63, rows: 4, band: 'end', margin: G(-25.8), gap: 0, shift: 1,
-    ref: { xs: [-0.48, -70.16, -178.22, -5.46].map(G), letters: [60, 60, 200, 100, 100, 40, 100, 133, 60, 100, 133, 80, 60] },
+    seed: 3,
+    ref: { xs: [-0.48, -70.16, -178.22, -5.46].map(G) },
   },
 };
 

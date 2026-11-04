@@ -22,7 +22,9 @@ export const LOGO_STYLES = [
   { id: 'violett', name: 'Mint auf Akzentviolett', plate: '#6100FF', mark: '#C8F2E0', source: 'In Anwendung › Gesellschaft' },
   { id: 'akzentgruen', name: 'Dunkelgrün auf Akzentgrün', plate: '#BDFF00', mark: '#004941', source: 'Podcast-Kachel (47:5457)' },
   { id: 'highlight', name: 'Akzentgrün auf Dunkelgrün', plate: '#004941', mark: '#BBFD00', source: 'UI Library: highlight-on-emphasis' },
+  { id: 'mint', name: 'Dunkelgrün auf Mintgrün', plate: '#C8F2E0', mark: '#004941', source: 'für dunkle Hintergründe (Organisation)' },
   { id: 'ohne', name: 'Ohne Fläche, Dunkelgrün', plate: null, mark: '#004941', source: 'UI Library: on-highlight' },
+  { id: 'ohne-hell', name: 'Ohne Fläche, Mintgrün', plate: null, mark: '#C8F2E0', source: 'UI Library: on-emphasis' },
 ];
 
 export const LOGO_MODES = [
