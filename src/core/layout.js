@@ -73,7 +73,7 @@ export function layoutPattern(font, input, motion = null) {
 
   // --- rows and baselines --------------------------------------------------------
   let n = Math.max(1, Math.round(p.rows));
-  if (p.pattern === 'rows') n = Math.min(n, MAX_ROWS_PER_STYLE);
+  if (p.pattern === 'rows') n = Math.max(3, Math.round(n / 3) * 3);   // always whole sets of 3 rows
   let first;
   if (p.band === 'fill') {
     n = Math.ceil((vh + cap) / lh) + 1;
@@ -387,10 +387,14 @@ export function letterWidths(n, p, words = [n]) {
 export function verlaufAt(p, t, row) {
   const lv = (p.letterLevels || PATTERN3_LEVELS);
   const lo = Math.min(...lv), hi = Math.max(...lv);
-  const k = 0.5 - 0.5 * Math.cos(2 * Math.PI * t * (p.gradWaves || 1));
+  // shape inside the word: ltr narrow → wide, rtl wide → narrow,
+  // mid narrow sides / wide middle, edges wide sides / narrow middle
+  const sh = p.gradShape || 'ltr';
+  const k = sh === 'ltr' ? t : sh === 'rtl' ? 1 - t : sh === 'mid' ? 0.5 - 0.5 * Math.cos(2 * Math.PI * t) : 0.5 + 0.5 * Math.cos(2 * Math.PI * t);
+  const kk = 0.5 - 0.5 * Math.cos(Math.PI * k);   // soft ends
   return {
-    wdth: p.gradAxis === 'wght' ? (lo + hi) / 2 : lo + (hi - lo) * k,
-    wght: p.gradAxis === 'wdth' ? p.letterWght : 145 + (925 - 145) * k,
+    wdth: p.gradAxis === 'wght' ? (lo + hi) / 2 : lo + (hi - lo) * kk,
+    wght: p.gradAxis === 'wdth' ? p.letterWght : 145 + (925 - 145) * kk,
   };
 }
 

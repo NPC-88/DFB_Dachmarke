@@ -44,10 +44,10 @@ test('rows never overlap: line height ≥ cap height', () => {
   }
 });
 
-test('3 Schnitte: at most 3 rows, one style per row', () => {
+test('3 Schnitte: rows in sets of 3 (3·6·9·12), the three cuts repeat', () => {
+  assert.deepEqual([1, 4, 6, 8, 12].map((r) => at('rows', { rows: r }).rows.length), [3, 3, 6, 9, 12]);
   const m = at('rows', { rows: 9 });
-  assert.equal(m.rows.length, 3);
-  m.rows.forEach((r, i) => { for (const g of r.glyphs) assert.deepEqual(g.c, P('rows').rowStyles[i]); });
+  m.rows.forEach((r, i) => { for (const g of r.glyphs) assert.deepEqual(g.c, P('rows').rowStyles[i % 3]); });
   assert.equal(m.rotate, 0);   // horizontal by default, like every pattern
   for (const id of ['single', 'rows', 'letters']) assert.equal(at(id, { orientation: 'vertical' }).rotate, -90);
 });

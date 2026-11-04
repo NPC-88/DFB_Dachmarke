@@ -248,8 +248,8 @@ export function startApp({ fonts, host, store }) {
   const isMix = (m) => () => params.pattern === 'letters' && (params.mix || 'random') === m;
   const gAxis = chips('Verlauf über', [['wdth', 'Breite'], ['wght', 'Stärke'], ['both', 'Beides']], (v) => set({ gradAxis: v }), { small: true });
   add(sBox.body, { node: gAxis.node, when: isMix('verlauf'), sync: () => gAxis.set(params.gradAxis || 'wdth') });
-  const gWaves = slider({ key: 'gradWaves', label: 'Wellen pro Wort', min: 0.5, max: 3, step: 0.05, unit: '×' }, (v, tr) => set({ gradWaves: v }, { transient: tr }));
-  add(sBox.body, { node: gWaves.node, when: isMix('verlauf'), sync: () => gWaves.set(params.gradWaves || 1) });
+  const gShape = chips('Form pro Wort', [['ltr', 'Schmal → breit'], ['rtl', 'Breit → schmal'], ['mid', 'Mitte breit'], ['edges', 'Mitte schmal']], (v) => set({ gradShape: v }), { small: true });
+  add(sBox.body, { node: gShape.node, when: isMix('verlauf'), sync: () => gShape.set(params.gradShape || 'ltr') });
   const share = slider({ key: 'wideShare', label: 'Anteil breiter Buchstaben', min: 0, max: 50, step: 1, unit: '%' }, (v, tr) => set({ wideShare: v / 100, ref: dropLetters() }, { transient: tr }));
   add(sBox.body, { node: share.node, when: isMix('random'), sync: () => share.set(Math.round(params.wideShare * 100)) });
   const run = chips('Breite Buchstaben nacheinander, höchstens', [['1', '1'], ['2', '2'], ['3', '3']], (v) => set({ wideRun: +v, ref: dropLetters() }), { small: true });
@@ -273,7 +273,11 @@ export function startApp({ fonts, host, store }) {
   const rowsS = slider({ key: 'rows', label: 'Zeilen', min: 1, max: 12, step: 1 }, (v, tr) => set({ rows: v }, { transient: tr }));
   add(aBox.body, {
     node: rowsS.node, when: () => params.band !== 'fill',
-    sync: () => { const r = rowsS.node.querySelector('input'); r.max = params.pattern === 'rows' ? MAX_ROWS_PER_STYLE : 12; rowsS.set(params.pattern === 'rows' ? Math.min(params.rows, 3) : params.rows); },
+    sync: () => {
+      const r = rowsS.node.querySelector('input'), three = params.pattern === 'rows';
+      r.min = three ? 3 : 1; r.step = three ? 3 : 1; r.max = 12;            // 3 Schnitte: 3 · 6 · 9 · 12
+      rowsS.set(three ? Math.max(3, Math.round(params.rows / 3) * 3) : params.rows);
+    },
   });
   const sizeS = slider({ key: 'size', label: 'Schriftgröße (% der kurzen Seite)', min: 2, max: 40, step: 0.1, unit: '%' }, (v, tr) => set({ size: v / 100 }, { transient: tr }));
   add(aBox.body, { node: sizeS.node, sync: () => sizeS.set(+(params.size * 100).toFixed(1)) });
@@ -346,8 +350,8 @@ export function startApp({ fonts, host, store }) {
   const lRow = el('div', { class: 'seed-row' });
   const lStd = el('button', { type: 'button', class: 'btn btn-ghost btn-small' }, 'Standardgröße (1/7)');
   lStd.addEventListener('click', () => setLogo({ size: LOGO_DEFAULTS.size }));
-  const lPos = el('button', { type: 'button', class: 'btn btn-ghost btn-small' }, 'Position zurücksetzen');
-  lPos.addEventListener('click', () => setLogo({ cx: null, cy: null, ox: 0, oy: 0 }));
+  const lPos = el('button', { type: 'button', class: 'btn btn-ghost btn-small' }, 'Logo zurücksetzen');
+  lPos.addEventListener('click', () => { setLogo({ cx: null, cy: null, ox: 0, oy: 0, size: LOGO_DEFAULTS.size }); flash('Logo auf Standardposition und -größe gesetzt.'); });
   lRow.append(lStd, lPos);
   add(lBox.body, { node: lRow, when: () => lg().on });
   const lSnap = switchRow('An Wortgrenzen öffnen (kein Wort wird geteilt)', (on) => setLogo({ snap: on }));
