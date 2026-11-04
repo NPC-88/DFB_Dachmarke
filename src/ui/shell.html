@@ -313,6 +313,9 @@ dialog.modal::backdrop { background: #0000004d; }
 .toast-error > .icon { color: var(--error); }
 
 /* --- Dachmarke additions --- */
+/* dark layout (Tiefgrün / Dunkelgrün) in the dark interface: lighter CD surround (Mintgrün 02) */
+:root[data-theme="dark"] #viewport.layout-dark, :root[data-theme="dark"] .anim-viewport.layout-dark { background: #A6CABA; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #viewport.layout-dark, :root:not([data-theme="light"]) .anim-viewport.layout-dark { background: #A6CABA; } }
 .color-list { display: flex; flex-direction: column; gap: 2px; }
 .color-item { display: flex; align-items: center; gap: var(--s3); padding: 6px var(--s2); border: 0; border-radius: var(--r-input); background: transparent; color: var(--fg); font: 400 var(--fs-body)/1.2 var(--font-ui); text-align: left; cursor: pointer; }
 .color-item:hover { background: var(--chip); }

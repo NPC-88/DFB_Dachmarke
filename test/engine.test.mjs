@@ -80,7 +80,7 @@ test('Verlauf (test): widths follow a wave along each row', () => {
   assert.ok(Math.min(...g2) < 300 && Math.max(...g2) > 800);
 });
 
-test('no stacked words: neighbouring rows start at least ¼ repeat apart (1 Schnitt, Schnittmix)', () => {
+test('no stacked words: neighbouring rows start at least ¼ repeat apart (1 Schnitt)', () => {
   const check = (m, L) => {
     for (let r = 1; r < m.rowStarts.length; r++) {
       const d = (((m.rowStarts[r] - m.rowStarts[r - 1]) % L) + L) % L;
@@ -94,7 +94,6 @@ test('no stacked words: neighbouring rows start at least ¼ repeat apart (1 Schn
     // repeat length = phrase + space (+ gap)
     const L = e.font.run(m.phrase + ' ', id === 'single' ? p.style : { wdth: 100, wght: 925 }, p.italic).reduce((s, g) => s + g.advance, 0) * m.scale;
     if (id === 'single') check(m, L);
-    else assert.ok(m.rowStarts.every((x, r) => r === 0 || Math.abs(x - m.rowStarts[r - 1]) > 1), 'letters rows differ');
   }
   // the Figma counter-example (87:1477): rows 1/2 and 3/4 start together → separated
   const bad = e.layout({ ...P('single'), width: 441, height: 624, ref: { xs: [-301, -301, -488, -488].map((x) => x / 441) } });
@@ -118,22 +117,26 @@ test('Neue Variante: 1 Schnitt picks the area cuts; 3 Schnitte reorders the thre
     assert.ok(org.widths.includes(a.wdth) && org.weights.includes(a.wght));
     assert.ok(ges.widths.includes(b.wdth) && ges.weights.includes(b.wght));
     const ws = variantStyles('rows', seed, org).rowStyles.map((r) => r.wdth + '/' + r.wght).sort();
-    assert.deepEqual(ws, ['100/925', '133/925', '200/925']);
+    assert.deepEqual(ws, ['166/925', '40/925', '80/925']);
   }
   assert.deepEqual(variantStyles('letters', 3), {});
 });
 
-test('tiled rows fill the frame edge to edge; Schnittmix rows reach the far edge', () => {
-  for (const id of ['single', 'rows', 'letters']) {
-    for (const seed of [1, 2, 3, 99]) {
-      const m = at(id, { ref: null, seed });
-      for (const r of m.rows) {
-        if (!r.glyphs.length) continue;
-        const last = r.glyphs[r.glyphs.length - 1];
-        assert.ok(last.x + m.fontSize * 0.2 >= m.vw - m.fontSize * 1.5, `${id} ${seed} reaches end`);
-        if (id !== 'letters') assert.ok(r.glyphs[0].x <= m.fontSize * 1.2, `${id} ${seed} starts at the edge`);
-      }
+test('tiled rows fill the frame edge to edge; Schnittmix: one phrase per row, placed freely', () => {
+  for (const id of ['single', 'rows']) for (const seed of [1, 2, 3, 99]) {
+    const m = at(id, { ref: null, seed });
+    for (const r of m.rows) {
+      if (!r.glyphs.length) continue;
+      assert.ok(r.glyphs[r.glyphs.length - 1].x >= m.vw - m.fontSize * 1.5, `${id} ${seed} reaches end`);
+      assert.ok(r.glyphs[0].x <= m.fontSize * 1.2, `${id} ${seed} starts at the edge`);
     }
+  }
+  for (const seed of [1, 2, 3, 99]) {
+    const m = at('letters', { ref: null, seed });
+    for (const r of m.rows) assert.ok(r.glyphs.length <= 13, 'one phrase');
+    // Zeilenversatz scales the positions continuously (no jumps)
+    const a = at('letters', { ref: null, seed, shift: 0.5 }).rowStarts, b = at('letters', { ref: null, seed, shift: 0.51 }).rowStarts;
+    a.forEach((x, i) => assert.ok(Math.abs(x - b[i]) < 0.05 * 441));
   }
 });
 

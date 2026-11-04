@@ -81,6 +81,7 @@ export function createAnimationView(root, ctx) {
     if (canvas.width !== cw || canvas.height !== ch) { canvas.width = cw; canvas.height = ch; }
     canvas.style.width = cssW + 'px';
     canvas.style.height = cssH + 'px';
+    viewport.classList.toggle('layout-dark', parseInt(ctx.pair().background.slice(1, 3), 16) < 40);
     const model = ctx.engine.frame(p, ctx.anim(), t);
     drawModel(canvas.getContext('2d'), model, ctx.engine.font, { color: ctx.pair().color, background: ctx.pair().background, k: cw / p.width });
   }

@@ -23,11 +23,10 @@ export const PALETTE = [
 //   Organisation — cuts normal width + Wide, Bold / Black, upright
 //   Gesellschaft — cuts Wide + Extended, Bold / Black, upright
 //   Sport        — like Gesellschaft, italic
-// Italic in the patterns is still under discussion: the area sets the default,
-// the switch stays for testing.
+// Patterns are always italic (team decision); the area's upright rule is for headlines.
 export const AREAS = [
-  { id: 'organisation', name: 'Organisation', italic: false, widths: [100, 133], weights: [650, 925], logos: ['dunkelgruen', 'mint', 'ohne', 'ohne-hell'] },
-  { id: 'gesellschaft', name: 'Gesellschaft', italic: false, widths: [133, 166], weights: [650, 925], logos: ['violett', 'ohne', 'ohne-hell'] },
+  { id: 'organisation', name: 'Organisation', italic: true, widths: [100, 133], weights: [650, 925], logos: ['dunkelgruen', 'mint', 'ohne', 'ohne-hell'] },
+  { id: 'gesellschaft', name: 'Gesellschaft', italic: true, widths: [133, 166], weights: [650, 925], logos: ['violett', 'ohne', 'ohne-hell'] },
   { id: 'sport', name: 'Sport', italic: true, widths: [133, 166], weights: [650, 925], logos: ['dunkelgruen', 'akzentgruen', 'ohne', 'ohne-hell'] },
 ];
 export const CATEGORIES = AREAS;
@@ -72,9 +71,9 @@ export const TEXT_SUGGESTIONS = ['Fußballliebe', 'Fußball', 'Deutscher Fußbal
 
 const F = (px) => px / 441;      // Figma frame is 441 px wide (shorter side)
 
-// Pattern 2: one family, three cuts — "Bold, Wide or Very Extended Wide" — the
-// same for every area; only their order changes (team rules, Nov 2026).
-export const PATTERN2_CUTS = [{ wdth: 100, wght: 925 }, { wdth: 133, wght: 925 }, { wdth: 200, wght: 925 }];
+// Pattern 2: three cuts, as Figma Graf_Typopattern_2 (53:683): Extended Black
+// Italic → Condensed Black Italic → Compressed Black Italic; order can change.
+export const PATTERN2_CUTS = [{ wdth: 166, wght: 925 }, { wdth: 80, wght: 925 }, { wdth: 40, wght: 925 }];
 // Pattern 3: three cuts — Extended, Condensed, Compressed (team rules, Nov 2026).
 export const PATTERN3_LEVELS = [40, 80, 166];
 
@@ -85,7 +84,7 @@ export const PATTERN3_LEVELS = [40, 80, 166];
 export const SINGLE = {
   id: 'single', name: '1 Schnitt', label: '1 Schriftschnitt mit Zeilenversatz', colorPair: 'mint',
   params: {
-    area: 'organisation', text: 'Club 100', pattern: 'single', orientation: 'horizontal', italic: false,
+    area: 'organisation', text: 'Club 100', pattern: 'single', orientation: 'horizontal', italic: true,
     style: { wdth: 133, wght: 925 },
     size: F(70), lineHeight: 58 / 70, rows: 4, band: 'end', margin: F(26), gap: 0, shift: 1,
     ref: { xs: [-41, -301, -488, -747].map(F) },
@@ -97,7 +96,7 @@ export const SINGLE = {
 export const ROWS = {
   id: 'rows', name: '3 Schnitte', label: '3 Schriftschnitte, 1 Schnitt pro Zeile', colorPair: 'mint',
   params: {
-    area: 'organisation', text: 'Deutscher Fußball Bund', pattern: 'rows', orientation: 'horizontal', italic: false,
+    area: 'organisation', text: 'Deutscher Fußball Bund', pattern: 'rows', orientation: 'horizontal', italic: true,
     rowStyles: PATTERN2_CUTS.map((c) => ({ ...c })),
     size: F(70), lineHeight: 58 / 70, rows: 3, band: 'end', margin: F(26), gap: 0.4, shift: 1,
     seed: 7,
@@ -113,8 +112,8 @@ const G = (px) => px / 278.67;
 export const LETTERS = {
   id: 'letters', name: 'Schnittmix', label: 'Schnittmix pro Buchstabe mit Zeilenversatz', colorPair: 'mint',
   params: {
-    area: 'organisation', text: 'Fußballliebe', pattern: 'letters', orientation: 'horizontal', italic: false,
-    letterWght: 925, wideShare: 0.25, wideRun: 1, mix: 'random', gradAxis: 'wdth', gradWaves: 1.5,
+    area: 'organisation', text: 'Fußballliebe', pattern: 'letters', orientation: 'horizontal', italic: true,
+    letterWght: 925, wideShare: 0.25, wideRun: 1, mix: 'random', gradAxis: 'wdth', gradWaves: 1,
     size: G(66.63), lineHeight: 52.96 / 66.63, rows: 4, band: 'end', margin: G(-25.8), gap: 0, shift: 1,
     seed: 3,
     ref: { xs: [-0.48, -70.16, -178.22, -5.46].map(G) },

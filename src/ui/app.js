@@ -4,7 +4,7 @@
 // from `host`; the library backend from `store`.
 
 import {
-  createEngine, PRESETS, COLOR_PAIRS, CATEGORIES, categoryOf, AREAS, areaOf, pairsOf, isDark, PATTERN2_CUTS, FORMATS, DEFAULT_FORMAT, TEXT_SUGGESTIONS, WIDTHS, WEIGHTS, styleName,
+  createEngine, PRESETS, COLOR_PAIRS, CATEGORIES, categoryOf, AREAS, areaOf, pairsOf, isDark as isDarkColor, PATTERN2_CUTS, FORMATS, DEFAULT_FORMAT, TEXT_SUGGESTIONS, WIDTHS, WEIGHTS, styleName,
   ANIM_DEFAULTS, MAX_ROWS_PER_STYLE, newSeed, variantStyles, LOGO_STYLES, LOGO_MODES, LOGO_DEFAULTS, LOGO_PATH, LOGO_VIEWBOX, normalizeAnim, STRUCTURE,
 } from '../core/index.js';
 import { panel, el, chips, slider } from './controls.js';
@@ -121,7 +121,7 @@ export function startApp({ fonts, host, store }) {
     pairId = first.id;
     const st = params.style || { wdth: 133, wght: 925 };
     const style = ar.widths.includes(st.wdth) && ar.weights.includes(st.wght) ? st : { wdth: ar.widths[ar.widths.length - 1], wght: 925 };
-    params = { ...params, area: id, italic: ar.italic, style, logo: { ...LOGO_DEFAULTS, ...(params.logo || {}), style: first.logo } };
+    params = { ...params, area: id, italic: true, style, logo: { ...LOGO_DEFAULTS, ...(params.logo || {}), style: first.logo } };
     update();
   }
 
@@ -248,15 +248,13 @@ export function startApp({ fonts, host, store }) {
   const isMix = (m) => () => params.pattern === 'letters' && (params.mix || 'random') === m;
   const gAxis = chips('Verlauf über', [['wdth', 'Breite'], ['wght', 'Stärke'], ['both', 'Beides']], (v) => set({ gradAxis: v }), { small: true });
   add(sBox.body, { node: gAxis.node, when: isMix('verlauf'), sync: () => gAxis.set(params.gradAxis || 'wdth') });
-  const gWaves = slider({ key: 'gradWaves', label: 'Wellen über die Fläche', min: 0.3, max: 4, step: 0.05, unit: '×' }, (v, tr) => set({ gradWaves: v }, { transient: tr }));
-  add(sBox.body, { node: gWaves.node, when: isMix('verlauf'), sync: () => gWaves.set(params.gradWaves || 1.5) });
+  const gWaves = slider({ key: 'gradWaves', label: 'Wellen pro Wort', min: 0.5, max: 3, step: 0.05, unit: '×' }, (v, tr) => set({ gradWaves: v }, { transient: tr }));
+  add(sBox.body, { node: gWaves.node, when: isMix('verlauf'), sync: () => gWaves.set(params.gradWaves || 1) });
   const share = slider({ key: 'wideShare', label: 'Anteil breiter Buchstaben', min: 0, max: 50, step: 1, unit: '%' }, (v, tr) => set({ wideShare: v / 100, ref: dropLetters() }, { transient: tr }));
   add(sBox.body, { node: share.node, when: isMix('random'), sync: () => share.set(Math.round(params.wideShare * 100)) });
   const run = chips('Breite Buchstaben nacheinander, höchstens', [['1', '1'], ['2', '2'], ['3', '3']], (v) => set({ wideRun: +v, ref: dropLetters() }), { small: true });
   add(sBox.body, { node: run.node, when: isMix('random'), sync: () => run.set(String(params.wideRun)) });
 
-  const ital = switchRow('Kursiv', (on) => set({ italic: on }));
-  add(sBox.body, { node: ital.node, sync: () => ital.set(params.italic) });
 
   // Anordnung
   const aBox = panel('Anordnung', true);
@@ -295,7 +293,7 @@ export function startApp({ fonts, host, store }) {
   const rowReset = el('button', { type: 'button', class: 'btn btn-ghost btn-small' }, 'Zeilen zurücksetzen');
   rowReset.addEventListener('click', () => set({ rowShift: null }));
   rowHint.append(rowReset);
-  add(aBox.body, { node: rowHint, when: () => params.pattern === 'single', sync: () => { rowReset.disabled = !(params.rowShift && params.rowShift.some((v) => v)); } });
+  add(aBox.body, { node: rowHint, when: () => params.pattern === 'single' || params.pattern === 'letters', sync: () => { rowReset.disabled = !(params.rowShift && params.rowShift.some((v) => v)); } });
   const shiftS = slider({ key: 'shift', label: 'Zeilenversatz', min: 0, max: 100, step: 1, unit: '%' }, (v, tr) => set({ shift: v / 100, ref: dropXs() }, { transient: tr }));
   add(aBox.body, { node: shiftS.node, sync: () => shiftS.set(Math.round(params.shift * 100)) });
   const gapS = slider({ key: 'gap', label: 'Abstand zwischen Wiederholungen', min: 0, max: 3, step: 0.05, unit: 'em' }, (v, tr) => set({ gap: v }, { transient: tr }));
@@ -338,7 +336,7 @@ export function startApp({ fonts, host, store }) {
   add(lBox.body, {
     node: lStyle, when: () => lg().on,
     sync: () => {
-      const dark = isDark(pair().background);
+      const dark = isDarkColor(pair().background);
       const allowed = areaOf(params.area).logos.filter((id) => (id === 'ohne' ? !dark : id === 'ohne-hell' || id === 'mint' ? dark : true));
       lBtns.forEach((b) => { b.hidden = !allowed.includes(b.dataset.id); b.setAttribute('aria-pressed', String(b.dataset.id === lg().style)); });
     },
@@ -469,7 +467,7 @@ export function startApp({ fonts, host, store }) {
   stage.insertBefore(rowLayer, logoEl);
   let rowDrag = null;
   function syncRowStrips() {
-    const on = params.pattern === 'single' && model;
+    const on = (params.pattern === 'single' || params.pattern === 'letters') && model;
     rowLayer.hidden = !on;
     if (!on) return;
     const cap = engine.font.capHeight / engine.font.unitsPerEm * model.fontSize;
@@ -551,7 +549,7 @@ export function startApp({ fonts, host, store }) {
     const b = base(id);
     const ar = areaOf(params.area);
     const style = ar.widths.includes(b.style && b.style.wdth) ? b.style : { wdth: ar.widths[ar.widths.length - 1], wght: 925 };
-    params = { ...b, area: ar.id, italic: params.italic, style, text: params.text, width: params.width, height: params.height, logo: params.logo };
+    params = { ...b, area: ar.id, italic: true, style, text: params.text, width: params.width, height: params.height, logo: params.logo };
     update();
   }
 
@@ -681,6 +679,7 @@ export function startApp({ fonts, host, store }) {
       const id = presetOf(s.params.pattern).id;
       params = { ...base(id), ...clone(s.params) };
       params.logo = { ...LOGO_DEFAULTS, ...(s.params.logo || {}) };
+      params.italic = true;
     }
     if (s.colorPair && COLOR_PAIRS.some((c) => c.id === s.colorPair)) pairId = s.colorPair;
     const pa = (COLOR_PAIRS.find((c) => c.id === pairId) || COLOR_PAIRS[0]).area;
@@ -713,6 +712,7 @@ export function startApp({ fonts, host, store }) {
     model = engine.layout(params);
     art.innerHTML = engine.svg(model, { color: pair().color, mode: 'outlines', precision: 1 });
     stage.style.background = pair().background;
+    viewport.classList.toggle('layout-dark', isDarkColor(pair().background));
     syncLogoBox();
     syncRowStrips();
     syncGapArrows();

@@ -40,7 +40,7 @@ export const LAYOUT_DEFAULTS = {
   letterWght: 925,             // letters: weight (Black)
   mix: 'random',               // letters: 'random' (seeded mix) | 'verlauf' (test: wave along the rows)
   gradAxis: 'wdth',            // verlauf: 'wdth' (Compressed → Extended) | 'wght' (light → bold) | 'both'
-  gradWaves: 1.5,              // verlauf: waves across the frame
+  gradWaves: 1,                // verlauf: waves per word
   area: 'organisation',        // Dachmarke area (sets defaults in the UI; see presets.js)
   wideShare: 0.25,             // letters: share of wide letters (Extended / Super Extended)
   wideRun: 1,                  // letters: wide letters in a row at most
@@ -149,9 +149,9 @@ export function layoutPattern(font, input, motion = null) {
   const inkR = (g, x, adv) => { const b = font.bounds(g.id, g.c, it); return b ? x + b.xMax * scale : x + adv; };
 
   // --- no stacked words (team rule): neighbouring rows never start at the same
-  // point of the phrase — at least ¼ of a repeat apart (1 Schnitt, Schnittmix).
+  // point of the phrase — at least ¼ of a repeat apart (1 Schnitt).
   const eff = Array.from({ length: n }, (_, r) => starts[r] + bx + rowShift(r));
-  if (p.pattern !== 'rows') {
+  if (p.pattern === 'single') {
     for (let r = 1; r < n; r++) {
       const L = units[r].length, min = 0.25 * L;
       const m = (((eff[r] - eff[r - 1]) % L) + L) % L;
@@ -161,9 +161,12 @@ export function layoutPattern(font, input, motion = null) {
   }
   // Schnittmix "Verlauf" (test) — widths / weights follow a wave along the rows
   const verlauf = p.pattern === 'letters' && p.mix === 'verlauf';
+  // position of every letter inside its word, 0 … 1 (the Verlauf runs per word)
+  const wordPos = [];
+  for (const len of words) for (let k = 0; k < len; k++) wordPos.push(len > 1 ? k / (len - 1) : 0.5);
   const mod = verlauf || motion
     ? (c, info) => {
-      let out = verlauf && info.letter >= 0 ? verlaufAt(p, info.x, info.row) : c;
+      let out = verlauf && info.letter >= 0 ? verlaufAt(p, wordPos[info.letter % wordPos.length], info.row) : c;
       if (motion) out = motion(out, info);
       return out;
     }
@@ -198,6 +201,7 @@ export function layoutPattern(font, input, motion = null) {
       }
       x = mod ? gx + gapPx : x + L;
       rep++;
+      if (p.pattern === 'letters' && !holeHere) break;   // Schnittmix: one phrase per row
       if (rep > 4000) break;
     }
     const opened = holeHere ? openAround(seq, holeHere, rowShift(r) ? null : prevGap) : null;   // a row moved by hand keeps the gap it was moved to
@@ -302,16 +306,14 @@ export function rowStarts(n, lengths, vw, p) {
   const R = stream(p.seed, 'rows');
   const out = [];
   if (p.pattern === 'letters') {
-    const lo = -0.65, hi = 0.3;
-    let prev = null;
+    // Each row one phrase, placed anywhere from far left (only its end visible)
+    // to well inside the frame (Figma 87:1541, LC layouts). The seed fixes each
+    // row's position u ∈ [0, 1]; Zeilenversatz scales it continuously (0 = all
+    // rows start at the left edge), so the slider never jumps.
     for (let i = 0; i < n; i++) {
-      let u = 0;
-      for (let k = 0; k < 12; k++) {
-        u = R.range(lo, hi);
-        if (prev == null || Math.abs(u - prev) >= 0.12) break;
-      }
-      prev = u;
-      out.push(u * p.shift * vw);
+      const L = lengths[i], u = R();
+      const lo = -Math.max(0, L - 0.45 * vw), hi = 0.55 * vw;
+      out.push((lo + (hi - lo) * u) * p.shift);
     }
     return out;
   }
@@ -379,26 +381,27 @@ export function letterWidths(n, p, words = [n]) {
   return out;
 }
 
-// Pattern 3, mix 'verlauf' (test): a wave along the rows, each row a little
-// later — Compressed → Extended → Compressed and/or light → bold → light.
-export function verlaufAt(p, x, row) {
+// Pattern 3, mix 'verlauf' (test): per word — Compressed → Extended →
+// Compressed and/or light → bold → light from the first to the last letter of
+// each word (gradWaves = waves per word). t = position in the word, 0 … 1.
+export function verlaufAt(p, t, row) {
   const lv = (p.letterLevels || PATTERN3_LEVELS);
   const lo = Math.min(...lv), hi = Math.max(...lv);
-  const t = 0.5 - 0.5 * Math.cos(2 * Math.PI * (x * (p.gradWaves || 1.5) - row * 0.18));
+  const k = 0.5 - 0.5 * Math.cos(2 * Math.PI * t * (p.gradWaves || 1));
   return {
-    wdth: p.gradAxis === 'wght' ? (lo + hi) / 2 : lo + (hi - lo) * t,
-    wght: p.gradAxis === 'wdth' ? p.letterWght : 145 + (925 - 145) * t,
+    wdth: p.gradAxis === 'wght' ? (lo + hi) / 2 : lo + (hi - lo) * k,
+    wght: p.gradAxis === 'wdth' ? p.letterWght : 145 + (925 - 145) * k,
   };
 }
 
 // "Neue Variante" for 1 Schnitt and 3 Schnitte: new styles within the rules.
 // 1 Schnitt: one of the area's cuts (widths × Bold / Black).
-// 3 Schnitte: the three fixed cuts in a new order.
+// 3 Schnitte: the three fixed cuts (Extended / Condensed / Compressed Black) in a new order.
 export function variantStyles(pattern, seed, area = { widths: [100, 133], weights: [650, 925] }) {
   const R = stream(seed, 'styles');
   if (pattern === 'single') return { style: { wdth: R.pick(area.widths), wght: R.pick(area.weights) } };
   if (pattern === 'rows') {
-    const cuts = [{ wdth: 100, wght: 925 }, { wdth: 133, wght: 925 }, { wdth: 200, wght: 925 }];
+    const cuts = [{ wdth: 166, wght: 925 }, { wdth: 80, wght: 925 }, { wdth: 40, wght: 925 }];
     let order = cuts.slice().sort(() => R() - 0.5);
     return { rowStyles: order };
   }
