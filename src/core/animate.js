@@ -117,7 +117,7 @@ export function motionAt(params, anim, t, axes = { wdth: { min: 40, max: 200 }, 
   const L = animLength(a);
   const reps = a.moments.length >= 2 ? Math.max(1, Math.round(a.cycles)) : 1;
   const u = ((((t / L) * reps) % 1) + 1) % 1;            // 0..1 through one effect cycle
-  const doW = a.axis !== 'wght', doG = a.axis !== 'wdth';
+  const doW = a.axis !== 'wght', doG = a.axis === 'wght';
   const spanW = (axes.wdth.max - axes.wdth.min) * a.amount;
   const spanG = (900 - 400) * a.amount;                  // keep weight inside readable styles
 

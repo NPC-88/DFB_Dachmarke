@@ -2,7 +2,7 @@
 // variable on two axes: wdth 40–200 and wght 75–1000. The engine only talks to
 // this interface: shaped runs, advances and outlines at any (wdth, wght).
 //
-// Coordinates are rounded (wdth to 1, wght to 5 units) so instance and path
+// Coordinates are rounded (wdth to ¼, wght to 1 unit) so instance and path
 // caches stay small even while an animation sweeps through the axes.
 
 // Named instances of the font (fvar), used as the style choices in the tool and
@@ -62,8 +62,8 @@ export function createFont(fkUpright, fkItalic, { features = ['kern', 'locl'] } 
   }
   const axes = fonts[0].variationAxes;
   const upm = fonts[0].unitsPerEm;
-  const clampWdth = (v) => Math.round(Math.min(axes.wdth.max, Math.max(axes.wdth.min, v)));
-  const clampWght = (v) => Math.round(Math.min(axes.wght.max, Math.max(axes.wght.min, v)) / 5) * 5;
+  const clampWdth = (v) => Math.round(Math.min(axes.wdth.max, Math.max(axes.wdth.min, v)) * 20) / 20;   // 1/20 unit: smooth animation
+  const clampWght = (v) => Math.round(Math.min(axes.wght.max, Math.max(axes.wght.min, v)));
   const norm = (c) => ({ wdth: clampWdth(c.wdth), wght: clampWght(c.wght) });
   const ikey = (c, it) => (it ? 'i' : 'u') + c.wdth + ',' + c.wght;
 

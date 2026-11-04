@@ -751,7 +751,8 @@ export function startApp({ fonts, host, store }) {
   // Toast (UI library: none / success / error), closes itself after 4 s.
   function flash(msg, kind) {
     if (!msg) return;
-    kind = kind || (/fehl|nicht|Fehler|abgebrochen/i.test(msg) ? 'error' : /^(Gespeichert|Geöffnet|Link kopiert|Umbenannt|Gelöscht)/.test(msg) ? 'success' : 'none');
+    kind = kind || (/fehl|nicht|Fehler/i.test(msg) ? 'error' : 'none');
+    if (kind !== 'error') return;          // only errors pop up; confirmations stay quiet
     const n = $('#toast');
     n.className = 'toast toast-' + kind;
     n.replaceChildren();

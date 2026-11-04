@@ -43,7 +43,7 @@ export function createAnimationView(root, ctx) {
 
   const eBox = panel('Effekt', true);
   const mode = chips('', [['none', 'Keiner'], ['welle', 'Welle'], ['atmen', 'Atmen'], ['wechsel', 'Schnittwechsel']], (v) => ctx.setAnim({ effect: v }), { small: true });
-  const axis = chips('Achse der Schrift', [['wdth', 'Breite'], ['wght', 'Stärke'], ['both', 'Beides']], (v) => ctx.setAnim({ axis: v }), { small: true });
+  const axis = chips('Achse der Schrift', [['wdth', 'Breite'], ['wght', 'Stärke']], (v) => ctx.setAnim({ axis: v }), { small: true });
   const amount = slider({ key: 'anim-amount', label: 'Ausschlag', min: 5, max: 100, step: 1, unit: '%' }, (v, tr) => ctx.setAnim({ amount: v / 100 }, { transient: tr }));
   const waves = slider({ key: 'anim-waves', label: 'Wellen über die Fläche', min: 0.5, max: 4, step: 0.1, unit: '×' }, (v, tr) => ctx.setAnim({ waves: v }, { transient: tr }));
   const cycles = chips('Effekt pro Durchlauf', [['1', '1×'], ['2', '2×'], ['3', '3×'], ['4', '4×']], (v) => ctx.setAnim({ cycles: +v }), { small: true });
@@ -111,6 +111,7 @@ export function createAnimationView(root, ctx) {
 
   function syncTime() {
     scrub.value = tNow / L();
+    scrub.style.setProperty('--fill', (tNow / L()) * 100 + '%');
     timeLabel.textContent = `${fmtS(tNow)} / ${fmtS(L())} s`;
     fpsLabel.textContent = playing && fpsShown ? `Vorschau ${fpsShown} B/s` : '';
   }
@@ -227,7 +228,7 @@ export function createAnimationView(root, ctx) {
     mode.set(a.effect);
     const fx = a.effect !== 'none';
     axis.node.hidden = amount.node.hidden = !fx;
-    axis.set(a.axis);
+    axis.set(a.axis === 'wght' ? 'wght' : 'wdth');
     amount.set(Math.round(a.amount * 100));
     waves.set(a.waves);
     waves.node.hidden = a.effect !== 'welle';
