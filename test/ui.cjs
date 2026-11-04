@@ -68,7 +68,7 @@ const path = require('path');
   await p.locator('.switch:has-text("Logo im Layout") .switch-track').click(); await p.click('.chip[data-value="fit"]');
   // export popover + downloads
   await p.click('#download'); await p.waitForTimeout(200); await shot('5-export');
-  for (const kind of ['svg-outlines', 'svg-text', 'png']) {
+  for (const kind of ['svg-outlines', 'png']) {
     if (!(await p.isVisible('#exportPop'))) await p.click('#download');
     await p.click(`#exportKinds [data-id="${kind}"]`);
     const [dl] = await Promise.all([p.waitForEvent('download'), p.click('#exportGo')]);

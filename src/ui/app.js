@@ -578,7 +578,6 @@ export function startApp({ fonts, host, store }) {
   // --- export ---------------------------------------------------------------------------
   const KINDS = [
     ['svg-outlines', 'SVG · Konturen', 'Sieht überall gleich aus, Text nicht editierbar.'],
-    ['svg-text', 'SVG · Live-Text', 'Editierbar. Braucht DFB Sans Pro (statische Schnitte) auf dem Rechner.'],
     ['png', 'PNG', 'Pixelbild in Formatgröße.'],
   ];
   const kindBtns = KINDS.map(([id, name, note]) => {
@@ -606,9 +605,9 @@ export function startApp({ fonts, host, store }) {
       flash(await host.save({ filename: name + '.png', data: blob }));
       return;
     }
-    const mode = exportOpts.kind === 'svg-text' ? 'text' : 'outlines';
+    const mode = 'outlines';
     const svg = engine.svg(model, { color: pair().color, background: bg, mode, title: name });
-    flash(await host.save({ filename: name + (mode === 'text' ? '-livetext' : '') + '.svg', data: svg }));
+    flash(await host.save({ filename: name + '.svg', data: svg }));
   });
   function fileName() {
     const t = model ? model.phrase : params.text;

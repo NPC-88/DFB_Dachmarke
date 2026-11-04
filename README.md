@@ -91,7 +91,6 @@ opens at `https://npc-88.github.io/DFB_Dachmarke/`.
   apart; 1 Schnitt and Schnittmix), also after "Neue Variante", the row offset slider and dragging.
 - **Export:**
   - **SVG · Konturen** (outlines): looks the same everywhere.
-  - **SVG · Live-Text**: editable text, needs the fonts installed (see below).
   - **PNG**.
   - Each export can include the background as its own layer or leave it transparent. Rows are
     named `Zeile_01`, `Zeile_02` … in the layer list.
@@ -109,19 +108,10 @@ opens at `https://npc-88.github.io/DFB_Dachmarke/`.
 - **Bibliothek** (library): saved patterns with their animation. Each can be opened, shared as a
   link, renamed or deleted. Light and dark interface.
 
-### Live-text SVG and fonts
+### Export
 
-Each piece of text in the SVG names the matching **static** font family first, for example
-`'DFB Sans Pro Static SupEx Black'` in italic. It then falls back to `'DFB Sans Pro Static'` (with
-`font-weight` and `font-stretch`) and finally to the variable `'DFB Sans Pro'` (with
-`font-variation-settings`). To edit it, the designer installs the static fonts from
-`DFB-Sans-Pro.zip → DFB-Sans-Pro-Static.zip`.
-
-`node test/livetext.mjs` tests this. It renders each pattern as live text, using only the
-installed static fonts (no web font), and compares the result with the outlines: under 2.5 % of
-the ink pixels differ, which is edge antialiasing. Live text is exact as long as letters use the
-named styles, which is always the case in the tool. Animation frames use in-between values and are
-only exported as video.
+SVG (outlines) and PNG, with or without the background layer. Live-text SVG was removed: it
+came through as one long line in a single cut, not usable for designers.
 
 ### Team library
 
