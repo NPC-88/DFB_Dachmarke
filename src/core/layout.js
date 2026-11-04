@@ -39,7 +39,7 @@ export const LAYOUT_DEFAULTS = {
   rowStyles: [{ wdth: 200, wght: 925 }, { wdth: 100, wght: 925 }, { wdth: 80, wght: 650 }], // rows
   letterWght: 925,             // letters: weight (Black)
   mix: 'random',               // letters: 'random' (seeded mix) | 'verlauf' (test: wave along the rows)
-  gradAxis: 'wdth',            // verlauf: 'wdth' (Compressed → Extended) | 'wght' (light → bold) | 'both'
+  gradAxis: 'wdth',            // verlauf: 'wdth' (Compressed → Extended) | 'wght' (light → bold)
   gradWaves: 1,                // verlauf: waves per word
   area: 'organisation',        // Dachmarke area (sets defaults in the UI; see presets.js)
   wideShare: 0.25,             // letters: share of wide letters (Extended / Super Extended)

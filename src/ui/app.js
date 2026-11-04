@@ -246,8 +246,8 @@ export function startApp({ fonts, host, store }) {
   const mixChips = chips('Mischung', [['random', 'Zufall'], ['verlauf', 'Verlauf (Test)']], (v) => set({ mix: v }), { small: true });
   add(sBox.body, { node: mixChips.node, when: isP('letters'), sync: () => mixChips.set(params.mix || 'random') });
   const isMix = (m) => () => params.pattern === 'letters' && (params.mix || 'random') === m;
-  const gAxis = chips('Verlauf über', [['wdth', 'Breite'], ['wght', 'Stärke'], ['both', 'Beides']], (v) => set({ gradAxis: v }), { small: true });
-  add(sBox.body, { node: gAxis.node, when: isMix('verlauf'), sync: () => gAxis.set(params.gradAxis || 'wdth') });
+  const gAxis = chips('Verlauf über', [['wdth', 'Breite'], ['wght', 'Stärke']], (v) => set({ gradAxis: v }), { small: true });
+  add(sBox.body, { node: gAxis.node, when: isMix('verlauf'), sync: () => gAxis.set(params.gradAxis === 'wght' ? 'wght' : 'wdth') });
   const gShape = chips('Form pro Wort', [['ltr', 'Schmal → breit'], ['rtl', 'Breit → schmal'], ['mid', 'Mitte breit'], ['edges', 'Mitte schmal']], (v) => set({ gradShape: v }), { small: true });
   add(sBox.body, { node: gShape.node, when: isMix('verlauf'), sync: () => gShape.set(params.gradShape || 'ltr') });
   const share = slider({ key: 'wideShare', label: 'Anteil breiter Buchstaben', min: 0, max: 50, step: 1, unit: '%' }, (v, tr) => set({ wideShare: v / 100, ref: dropLetters() }, { transient: tr }));
