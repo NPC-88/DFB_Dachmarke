@@ -16,14 +16,31 @@ export const PALETTE = [
   { id: 'weiss', name: 'Weiß', hex: '#FFFFFF' },
 ];
 
-// Pattern colour on background, as used on the board and in the moodboard.
-export const COLOR_PAIRS = [
-  { id: 'mint', name: 'Mintgrün 01 auf Mintgrün 02', color: '#C8F2E0', background: '#A6CABA', source: 'Basis (alle drei Muster)' },
-  { id: 'sport', name: 'Akzentgrün auf Mintgrün 02', color: '#BDFF00', background: '#A6CABA', source: 'In Anwendung › Sport' },
-  { id: 'gesellschaft', name: 'Akzentviolett auf Mintgrün 02', color: '#6100FF', background: '#A6CABA', source: 'In Anwendung › Gesellschaft' },
-  { id: 'dunkel', name: 'Tiefgrün auf Dunkelgrün', color: '#001F23', background: '#004941', source: 'Figma „A4 - 35“ (Schnittmix in DFB Sans Pro)' },
-  { id: 'mint-dunkel', name: 'Mintgrün 01 auf Dunkelgrün', color: '#C8F2E0', background: '#004941', source: 'Moodboard' },
+// Brand categories ("Dachmarkenbereiche"): the colour set decides the category.
+// From the board's "In Anwendung" layouts (Organisation / Gesellschaft / Sport):
+// background always Mintgrün 02; pattern and logo colours depend on the category.
+//   Organisation — pattern Mintgrün 01; logo plate Dunkelgrün (mint mark) or no plate
+//   Gesellschaft — pattern Mintgrün 01 or Akzentviolett; logo plate Akzentviolett or no plate
+//   Sport        — pattern Akzentgrün or Mintgrün 01; logo plate Dunkelgrün or Akzentgrün, or no plate
+// "Weitere": dark combinations seen outside these rows (A4 - 35, moodboard).
+export const CATEGORIES = [
+  { id: 'organisation', name: 'Organisation', logos: ['dunkelgruen', 'ohne'] },
+  { id: 'gesellschaft', name: 'Gesellschaft', logos: ['violett', 'ohne'] },
+  { id: 'sport', name: 'Sport', logos: ['dunkelgruen', 'akzentgruen', 'ohne'] },
+  { id: 'weitere', name: 'Weitere', logos: ['dunkelgruen', 'violett', 'akzentgruen', 'highlight', 'ohne'] },
 ];
+
+// Pattern colour on background. `logo` = the logo colour that comes with it.
+export const COLOR_PAIRS = [
+  { id: 'mint', category: 'organisation', name: 'Organisation · Mintgrün 01 auf Mintgrün 02', color: '#C8F2E0', background: '#A6CABA', logo: 'dunkelgruen', source: 'In Anwendung › Organisation' },
+  { id: 'gesellschaft-mint', category: 'gesellschaft', name: 'Gesellschaft · Mintgrün 01 auf Mintgrün 02', color: '#C8F2E0', background: '#A6CABA', logo: 'violett', source: 'In Anwendung › Gesellschaft' },
+  { id: 'gesellschaft', category: 'gesellschaft', name: 'Gesellschaft · Akzentviolett auf Mintgrün 02', color: '#6100FF', background: '#A6CABA', logo: 'violett', source: 'In Anwendung › Gesellschaft' },
+  { id: 'sport', category: 'sport', name: 'Sport · Akzentgrün auf Mintgrün 02', color: '#BBFD00', background: '#A6CABA', logo: 'dunkelgruen', source: 'In Anwendung › Sport' },
+  { id: 'sport-mint', category: 'sport', name: 'Sport · Mintgrün 01 auf Mintgrün 02', color: '#C8F2E0', background: '#A6CABA', logo: 'akzentgruen', source: 'In Anwendung › Sport' },
+  { id: 'dunkel', category: 'weitere', name: 'Tiefgrün auf Dunkelgrün', color: '#001F23', background: '#004941', logo: 'highlight', source: 'Figma „A4 - 35“ (Schnittmix in DFB Sans Pro)' },
+  { id: 'mint-dunkel', category: 'weitere', name: 'Mintgrün 01 auf Dunkelgrün', color: '#C8F2E0', background: '#004941', logo: 'akzentgruen', source: 'Moodboard' },
+];
+export const categoryOf = (pairId) => CATEGORIES.find((c) => c.id === (COLOR_PAIRS.find((p) => p.id === pairId) || COLOR_PAIRS[0]).category) || CATEGORIES[0];
 
 export const FORMATS = [
   { id: 'a', name: 'Hochformat A (Figma)', ratio: '1 : √2', width: 1240, height: 1754 },

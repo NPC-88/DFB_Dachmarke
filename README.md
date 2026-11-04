@@ -70,7 +70,16 @@ opens at `https://npc-88.github.io/DFB_Dachmarke/`.
     fixed in animations.
 - **Format:** Hochformat A (the Figma frame proportions, 1 : √2), 1 : 1, 4 : 5, 9 : 16, 16 : 9, or
   any custom size.
-- **Farbe** (colour): only the pairs used on the board (see below).
+- **Farbe / Bereich** (colour = brand category): the colour sets are grouped by the board's
+  categories, and choosing one sets the category, the pattern colour and the logo colour at once;
+  the logo panel then offers only that category's logo colours.
+
+  | Category | Pattern on Mintgrün 02 | Logo |
+  |---|---|---|
+  | Organisation | Mintgrün 01 | Dunkelgrün plate (mint mark), or no plate |
+  | Gesellschaft | Mintgrün 01 or Akzentviolett | Akzentviolett plate (mint mark), or no plate |
+  | Sport | Akzentgrün or Mintgrün 01 | Dunkelgrün plate, Akzentgrün plate (dunkelgrün mark), or no plate |
+  | Weitere | Tiefgrün on Dunkelgrün, Mintgrün 01 on Dunkelgrün | all |
 - **Export:**
   - **SVG · Konturen** (outlines): looks the same everywhere.
   - **SVG · Live-Text**: editable text, needs the fonts installed (see below).

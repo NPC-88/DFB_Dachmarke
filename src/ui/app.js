@@ -4,7 +4,7 @@
 // from `host`; the library backend from `store`.
 
 import {
-  createEngine, PRESETS, COLOR_PAIRS, FORMATS, DEFAULT_FORMAT, TEXT_SUGGESTIONS, WIDTHS, WEIGHTS, styleName,
+  createEngine, PRESETS, COLOR_PAIRS, CATEGORIES, categoryOf, FORMATS, DEFAULT_FORMAT, TEXT_SUGGESTIONS, WIDTHS, WEIGHTS, styleName,
   ANIM_DEFAULTS, MAX_ROWS_PER_STYLE, newSeed, variantStyles, LOGO_STYLES, LOGO_MODES, LOGO_DEFAULTS, LOGO_PATH, LOGO_VIEWBOX, normalizeAnim, STRUCTURE,
 } from '../core/index.js';
 import { panel, el, chips, slider } from './controls.js';
@@ -107,17 +107,34 @@ export function startApp({ fonts, host, store }) {
     if (id === 'tool') layoutStage();
   }
 
-  // --- colour pairs ------------------------------------------------------------------
-  const pairBtns = COLOR_PAIRS.map((c) => {
-    const b = el('button', { type: 'button', class: 'pair', title: `${c.name} — ${c.source}`, 'aria-label': c.name, 'data-id': c.id });
-    b.style.background = c.background;
-    const ink = el('span', {}, 'Aa');
-    ink.style.color = c.color;
-    b.append(ink);
-    b.addEventListener('click', () => { pairId = c.id; update(); });
-    $('#colors').append(b);
-    return b;
-  });
+  // --- colour sets, grouped by brand category ------------------------------------------
+  // Choosing a colour chooses the category (Organisation / Gesellschaft / Sport):
+  // pattern colour and the logo colour that belongs to it change at once.
+  const pairBtns = [];
+  for (const cat of CATEGORIES) {
+    const grp = el('div', { class: 'pair-cat', role: 'group', 'aria-label': cat.name, 'data-cat': cat.id });
+    for (const c of COLOR_PAIRS.filter((x) => x.category === cat.id)) {
+      const b = el('button', { type: 'button', class: 'pair', 'data-tip': c.name, 'aria-label': c.name, 'data-id': c.id });
+      b.style.background = c.background;
+      const ink = el('span', {}, 'Aa');
+      ink.style.color = c.color;
+      b.append(ink);
+      b.addEventListener('click', () => setPair(c.id));
+      grp.append(b);
+      pairBtns.push(b);
+    }
+    $('#colors').append(grp);
+  }
+  const catLabel = el('span', { class: 'cat-label', 'aria-live': 'polite' });
+  $('#colors').append(catLabel);
+  function setPair(id) {
+    pairId = id;
+    const pr = pair(), cat = categoryOf(id);
+    const logo = { ...LOGO_DEFAULTS, ...(params.logo || {}) };
+    // the logo takes the category's colour (unless it already has an allowed one that fits)
+    if (!cat.logos.includes(logo.style) || logo.style !== pr.logo) params = { ...params, logo: { ...logo, style: pr.logo } };
+    update();
+  }
 
   // --- format popover ----------------------------------------------------------------
   const fmtList = $('#formatList');
@@ -295,7 +312,13 @@ export function startApp({ fonts, host, store }) {
     return b;
   });
   lStyle.append(lSw);
-  add(lBox.body, { node: lStyle, when: () => lg().on, sync: () => lBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.id === lg().style))) });
+  add(lBox.body, {
+    node: lStyle, when: () => lg().on,
+    sync: () => {
+      const allowed = categoryOf(pairId).logos;
+      lBtns.forEach((b) => { b.hidden = !allowed.includes(b.dataset.id); b.setAttribute('aria-pressed', String(b.dataset.id === lg().style)); });
+    },
+  });
   const lSize = slider({ key: 'logoSize', label: 'Größe (% der kurzen Seite)', min: 10, max: 30, step: 0.1, unit: '%' }, (v, tr) => setLogo({ size: v / 100 }, { transient: tr }));
   add(lBox.body, { node: lSize.node, when: () => lg().on, sync: () => lSize.set(+(lg().size * 100).toFixed(1)) });
   const lRow = el('div', { class: 'seed-row' });
@@ -646,6 +669,8 @@ export function startApp({ fonts, host, store }) {
       if (r.sync && !r.node.hidden) r.sync();
     }
     pairBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.id === pairId)));
+    document.querySelectorAll('.pair-cat').forEach((g) => g.classList.toggle('active', g.dataset.cat === categoryOf(pairId).id));
+    catLabel.textContent = categoryOf(pairId).name;
     const f = FORMATS.find((x) => x.width === params.width && x.height === params.height);
     $('#formatBtn .dd-value').textContent = f ? `${f.name} · ${f.ratio}` : `${params.width} × ${params.height}`;
     fmtList.querySelectorAll('.menu-item').forEach((b) => b.setAttribute('aria-pressed', String(!!f && b.dataset.id === f.id)));

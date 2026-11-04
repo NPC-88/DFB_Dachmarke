@@ -313,6 +313,11 @@ dialog.modal::backdrop { background: #0000004d; }
 .toast-error > .icon { color: var(--error); }
 
 /* --- Dachmarke additions --- */
+.pair-cat { display: flex; gap: 4px; padding: 3px; border-radius: var(--r-pill); }
+.pair-cat.active { background: var(--chip); }
+#colors { gap: var(--s1); }
+.cat-label { font: 650 var(--fs-small)/1 var(--font-ui); letter-spacing: .06em; text-transform: uppercase; color: var(--fg-2); margin-left: var(--s1); white-space: nowrap; }
+@media (max-width: 1180px) { .cat-label { display: none; } }
 /* The app always fills the window exactly, at every width and browser zoom: the
    page itself never scrolls — only the control column (and the library) do. */
 html, body { height: 100%; overflow: hidden; }
