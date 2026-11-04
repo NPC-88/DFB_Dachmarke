@@ -16,7 +16,7 @@ test('font: two axes, upright and italic', () => {
 });
 
 test('text: capitals, ß → SS', () => {
-  assert.equal(at('letters').phrase, 'FUSSBALLLIEBE');
+  assert.equal(at('letters', { text: 'Fußballliebe' }).phrase, 'FUSSBALLLIEBE');
   assert.equal(at('single', { text: '  club   100 ' }).phrase, 'CLUB 100');
 });
 
@@ -30,7 +30,7 @@ test('reference CLUB 100 layout: 4 rows, Organisation cut (Wide Black), last bas
 });
 
 test('Schnittmix: three cuts (Compressed / Condensed / Extended), same order in every row', () => {
-  const m = at('letters');
+  const m = at('letters', { text: 'Fußballliebe' });
   assert.equal(m.letterMap.length, 13);
   for (const w of m.letterMap) assert.ok([40, 80, 166].includes(w));
   for (const r of m.rows) for (const g of r.glyphs) { assert.equal(g.c.wdth, m.letterMap[g.letter % 13]); assert.equal(g.c.wght, 925); }
@@ -163,7 +163,7 @@ test('animation effects: loop seamlessly, move the axes', () => {
 });
 
 test('animation points: start at point 1, pass point 2, loop back; rows slide, letters change width', () => {
-  const p = { ...P('letters'), width: 441, height: 624 };
+  const p = { ...P('letters'), text: 'Fußballliebe', width: 441, height: 624 };
   const m1 = { params: { ...p } };
   const m2 = { params: { ...p, ref: null, seed: 5, size: p.size * 0.8 } };
   const a = { ...ANIM_DEFAULTS, moments: [m1, m2], durations: [2, 3] };

@@ -96,9 +96,9 @@ export const SINGLE = {
 export const ROWS = {
   id: 'rows', name: '3 Schnitte', label: '3 Schriftschnitte, 1 Schnitt pro Zeile', colorPair: 'mint',
   params: {
-    area: 'organisation', text: 'Deutscher Fußball Bund', pattern: 'rows', orientation: 'horizontal', italic: true,
+    area: 'organisation', text: 'Club 100', pattern: 'rows', orientation: 'horizontal', italic: true,
     rowStyles: PATTERN2_CUTS.map((c) => ({ ...c })),
-    size: F(70), lineHeight: 58 / 70, rows: 3, band: 'end', margin: F(26), gap: 0.4, shift: 1,
+    size: 0.159, lineHeight: 0.83, rows: 3, band: 'end', margin: 0.059, gap: 0, shift: 1, blockX: 0,
     seed: 7,
   },
 };
@@ -112,11 +112,10 @@ const G = (px) => px / 278.67;
 export const LETTERS = {
   id: 'letters', name: 'Schnittmix', label: 'Schnittmix pro Buchstabe mit Zeilenversatz', colorPair: 'mint',
   params: {
-    area: 'organisation', text: 'Fußballliebe', pattern: 'letters', orientation: 'horizontal', italic: true,
+    area: 'organisation', text: 'Club 100', pattern: 'letters', orientation: 'horizontal', italic: true,
     letterWght: 925, wideShare: 0.25, wideRun: 1, mix: 'random', gradAxis: 'wdth', gradWaves: 1,
-    size: G(66.63), lineHeight: 52.96 / 66.63, rows: 4, band: 'end', margin: G(-25.8), gap: 0, shift: 1,
+    size: 0.239, lineHeight: 0.79, rows: 4, band: 'end', margin: -0.085, gap: 0, shift: 0.56, blockX: 0.215,
     seed: 3,
-    ref: { xs: [-0.48, -70.16, -178.22, -5.46].map(G) },
   },
 };
 

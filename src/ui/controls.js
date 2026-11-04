@@ -47,7 +47,7 @@ export function slider(c, onChange) {
   wrap.append(head, r);
   const show = (v) => {
     out.textContent = (c.step >= 1 ? Math.round(v) : (+v).toFixed(c.step < 0.01 ? 2 : 2)) + (c.unit && c.unit !== '×' ? (c.unit === '°' ? '°' : ' ' + c.unit) : '');
-    r.style.setProperty('--fill', ((v - c.min) / (c.max - c.min)) * 100 + '%');
+    r.style.setProperty('--fill', ((v - +r.min) / ((+r.max - +r.min) || 1)) * 100 + '%');   // current min/max (may change)
   };
   r.addEventListener('input', () => { show(r.value); onChange(parseFloat(r.value), true); });
   r.addEventListener('change', () => onChange(parseFloat(r.value), false));
